@@ -90,7 +90,7 @@ void setup()
     indev_drv.read_cb = my_touchpad_read;
     lv_indev_drv_register(&indev_drv);
 
-    lv_demo_widgets();
+    widgets();
 }
 
 void loop()

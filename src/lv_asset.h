@@ -15,7 +15,7 @@ extern "C" {
  *********************/
 #include <lvgl.h>
 
-#include "widgets/lv_demo_widgets.h"
+#include "widgets/widgets.h"
 
 
 

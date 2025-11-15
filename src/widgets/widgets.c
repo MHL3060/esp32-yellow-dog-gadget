@@ -1,17 +1,18 @@
 /**
- * @file lv_demo_widgets.c
+ * @file widgets.c
  *
  */
 
 /*********************
  *      INCLUDES
  *********************/
-#include "lv_demo_widgets.h"
+#include <lvgl.h>
+#include "widgets.h"
 
 #if LV_USE_DEMO_WIDGETS
 
 #if LV_MEM_CUSTOM == 0 && LV_MEM_SIZE < (38ul * 1024ul)
-    #error Insufficient memory for lv_demo_widgets. Please set LV_MEM_SIZE to at least 38KB (38ul * 1024ul).  48KB is recommended.
+    #error Insufficient memory for lv_widgets. Please set LV_MEM_SIZE to at least 38KB (38ul * 1024ul).  48KB is recommended.
 #endif
 
 /*********************
@@ -96,7 +97,7 @@ static lv_timer_t * meter2_timer;
  *   GLOBAL FUNCTIONS
  **********************/
 
-void lv_demo_widgets(void)
+void widgets(void)
 {
     if(LV_HOR_RES <= 320) disp_size = DISP_SMALL;
     else if(LV_HOR_RES < 720) disp_size = DISP_MEDIUM;
@@ -198,7 +199,7 @@ void lv_demo_widgets(void)
     color_changer_create(tv);
 }
 
-void lv_demo_widgets_close(void)
+void widgets_close(void)
 {
     /*Delete all animation*/
     lv_anim_del(NULL, NULL);
