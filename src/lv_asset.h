@@ -1,10 +1,10 @@
 /**
- * @file lv_demos.h
+ * @file lv_asset.h
  *
  */
 
-#ifndef LV_DEMOS_H
-#define LV_DEMOS_H
+#ifndef LV_ASSET_H
+#define LV_ASSET_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,4 +39,4 @@ extern "C" {
 } /* extern "C" */
 #endif
 
-#endif /*LV_DEMO_H*/
+#endif /*LV_ASSET_H*/

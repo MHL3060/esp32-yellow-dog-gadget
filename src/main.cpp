@@ -1,5 +1,5 @@
 #include <lvgl.h>
-#include "lv_demos.h"
+#include "lv_asset.h"
 #include <Arduino_GFX_Library.h>
 #define TFT_BL 2
 
