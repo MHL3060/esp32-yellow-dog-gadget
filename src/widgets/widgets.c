@@ -190,10 +190,10 @@ void widgets(void)
     }
 
     lv_obj_t * t1 = lv_tabview_add_tab(tv, "Settings");
-   // lv_obj_t * t2 = lv_tabview_add_tab(tv, "Analytics");
-    //lv_obj_t * t3 = lv_tabview_add_tab(tv, "Shop");
+    lv_obj_t * t2 = lv_tabview_add_tab(tv, "Analytics");
+    // lv_obj_t * t3 = lv_tabview_add_tab(tv, "Shop");
     profile_create(t1);
-    //analytics_create(t2);
+    analytics_create(t2);
     // shop_create(t3);
 
     color_changer_create(tv);
@@ -221,52 +221,7 @@ void widgets_close(void)
 
 static void profile_create(lv_obj_t * parent)
 {
-    /*
-    lv_obj_t * panel1 = lv_obj_create(parent);
-    lv_obj_set_height(panel1, LV_SIZE_CONTENT);
-
-    LV_IMG_DECLARE(img_demo_widgets_avatar);
-    lv_obj_t * avatar = lv_img_create(panel1);
-    lv_img_set_src(avatar, &img_demo_widgets_avatar);
-
-    lv_obj_t * name = lv_label_create(panel1);
-    lv_label_set_text(name, "Elena Smith");
-    lv_obj_add_style(name, &style_title, 0);
-
-    lv_obj_t * dsc = lv_label_create(panel1);
-    lv_obj_add_style(dsc, &style_text_muted, 0);
-    lv_label_set_text(dsc, "This is a short description of me. Take a look at my profile!");
-    lv_label_set_long_mode(dsc, LV_LABEL_LONG_WRAP);
-
-    lv_obj_t * email_icn = lv_label_create(panel1);
-    lv_obj_add_style(email_icn, &style_icon, 0);
-    lv_label_set_text(email_icn, LV_SYMBOL_ENVELOPE);
-
-    lv_obj_t * email_label = lv_label_create(panel1);
-    lv_label_set_text(email_label, "elena@smith.com");
-
-    lv_obj_t * call_icn = lv_label_create(panel1);
-    lv_obj_add_style(call_icn, &style_icon, 0);
-    lv_label_set_text(call_icn, LV_SYMBOL_CALL);
-
-    lv_obj_t * call_label = lv_label_create(panel1);
-    lv_label_set_text(call_label, "+79 246 123 4567");
-
-    lv_obj_t * log_out_btn = lv_btn_create(panel1);
-    lv_obj_set_height(log_out_btn, LV_SIZE_CONTENT);
-
-    lv_obj_t * label = lv_label_create(log_out_btn);
-    lv_label_set_text(label, "Log out");
-    lv_obj_center(label);
-
-    lv_obj_t * invite_btn = lv_btn_create(panel1);
-    lv_obj_add_state(invite_btn, LV_STATE_DISABLED);
-    lv_obj_set_height(invite_btn, LV_SIZE_CONTENT);
-
-    label = lv_label_create(invite_btn);
-    lv_label_set_text(label, "Invite");
-    lv_obj_center(label);
-    */
+   
     /*Create a keyboard*/
     lv_obj_t * kb = lv_keyboard_create(lv_scr_act());
     lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
@@ -340,63 +295,50 @@ static void profile_create(lv_obj_t * parent)
 
     lv_obj_t * sw2 = lv_switch_create(panel3);
 
-    if(disp_size == DISP_LARGE) {
-        static lv_coord_t grid_main_col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-        static lv_coord_t grid_main_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+    
+    static lv_coord_t grid_main_col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t grid_main_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
-        /*Create the top panel*/
-        static lv_coord_t grid_1_col_dsc[] = {LV_GRID_CONTENT, 5, LV_GRID_CONTENT, LV_GRID_FR(2), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-        static lv_coord_t grid_1_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, 10, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+    /*Create the top panel*/
+    static lv_coord_t grid_1_col_dsc[] = {LV_GRID_CONTENT, 5, LV_GRID_CONTENT, LV_GRID_FR(2), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t grid_1_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, 10, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
-        static lv_coord_t grid_2_col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-        static lv_coord_t grid_2_row_dsc[] = {
-            LV_GRID_CONTENT,  /*Title*/
-            5,                /*Separator*/
-            LV_GRID_CONTENT,  /*Box title*/
-            30,               /*Boxes*/
-            5,                /*Separator*/
-            LV_GRID_CONTENT,  /*Box title*/
-            30,               /*Boxes*/
-            LV_GRID_TEMPLATE_LAST
-        };
+    static lv_coord_t grid_2_col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t grid_2_row_dsc[] = {
+        LV_GRID_CONTENT,  /*Title*/
+        5,                /*Separator*/
+        LV_GRID_CONTENT,  /*Box title*/
+        30,               /*Boxes*/
+        5,                /*Separator*/
+        LV_GRID_CONTENT,  /*Box title*/
+        30,               /*Boxes*/
+        LV_GRID_TEMPLATE_LAST
+    };
 
-        lv_obj_set_grid_dsc_array(parent, grid_main_col_dsc, grid_main_row_dsc);
-/*
-        lv_obj_set_grid_cell(panel1, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
+    lv_obj_set_grid_dsc_array(parent, grid_main_col_dsc, grid_main_row_dsc);
 
-        lv_obj_set_grid_dsc_array(panel1, grid_1_col_dsc, grid_1_row_dsc);
-        lv_obj_set_grid_cell(avatar, LV_GRID_ALIGN_CENTER, 0, 1, LV_GRID_ALIGN_CENTER, 0, 5);
-        lv_obj_set_grid_cell(name, LV_GRID_ALIGN_START, 2, 2, LV_GRID_ALIGN_CENTER, 0, 1);
-        lv_obj_set_grid_cell(dsc, LV_GRID_ALIGN_STRETCH, 2, 4, LV_GRID_ALIGN_START, 1, 1);
-        lv_obj_set_grid_cell(email_icn, LV_GRID_ALIGN_CENTER, 2, 1, LV_GRID_ALIGN_CENTER, 3, 1);
-        lv_obj_set_grid_cell(email_label, LV_GRID_ALIGN_START, 3, 1, LV_GRID_ALIGN_CENTER, 3, 1);
-        lv_obj_set_grid_cell(call_icn, LV_GRID_ALIGN_CENTER, 2, 1, LV_GRID_ALIGN_CENTER, 4, 1);
-        lv_obj_set_grid_cell(call_label, LV_GRID_ALIGN_START, 3, 1, LV_GRID_ALIGN_CENTER, 4, 1);
-        lv_obj_set_grid_cell(log_out_btn, LV_GRID_ALIGN_STRETCH, 4, 1, LV_GRID_ALIGN_CENTER, 3, 2);
-        lv_obj_set_grid_cell(invite_btn, LV_GRID_ALIGN_STRETCH, 5, 1, LV_GRID_ALIGN_CENTER, 3, 2);
-*/
-        lv_obj_set_grid_cell(panel2, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_START, 1, 1);
-        lv_obj_set_grid_dsc_array(panel2, grid_2_col_dsc, grid_2_row_dsc);
-        lv_obj_set_grid_cell(panel2_title, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
-        lv_obj_set_grid_cell(user_name, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_CENTER, 3, 1);
-        lv_obj_set_grid_cell(user_name_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 2, 1);
-        lv_obj_set_grid_cell(password, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_CENTER, 3, 1);
-        lv_obj_set_grid_cell(password_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 2, 1);
-        lv_obj_set_grid_cell(birthdate, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_CENTER, 6, 1);
-        lv_obj_set_grid_cell(birthday_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 5, 1);
-        lv_obj_set_grid_cell(gender, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_CENTER, 6, 1);
-        lv_obj_set_grid_cell(gender_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 5, 1);
+    lv_obj_set_grid_cell(panel2, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_START, 1, 1);
+    lv_obj_set_grid_dsc_array(panel2, grid_2_col_dsc, grid_2_row_dsc);
+    lv_obj_set_grid_cell(panel2_title, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
+    lv_obj_set_grid_cell(user_name, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_CENTER, 3, 1);
+    lv_obj_set_grid_cell(user_name_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 2, 1);
+    lv_obj_set_grid_cell(password, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_CENTER, 3, 1);
+    lv_obj_set_grid_cell(password_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 2, 1);
+    lv_obj_set_grid_cell(birthdate, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_CENTER, 6, 1);
+    lv_obj_set_grid_cell(birthday_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 5, 1);
+    lv_obj_set_grid_cell(gender, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_CENTER, 6, 1);
+    lv_obj_set_grid_cell(gender_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 5, 1);
 
-        lv_obj_set_grid_cell(panel3, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
-        lv_obj_set_grid_dsc_array(panel3, grid_2_col_dsc, grid_2_row_dsc);
-        lv_obj_set_grid_cell(panel3_title, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
-        lv_obj_set_grid_cell(slider1, LV_GRID_ALIGN_CENTER, 0, 2, LV_GRID_ALIGN_CENTER, 3, 1);
-        lv_obj_set_grid_cell(experience_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 2, 1);
-        lv_obj_set_grid_cell(sw2, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_CENTER, 6, 1);
-        lv_obj_set_grid_cell(hard_working_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 5, 1);
-        lv_obj_set_grid_cell(sw1, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_CENTER, 6, 1);
-        lv_obj_set_grid_cell(team_player_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 5, 1);
-    }
+    lv_obj_set_grid_cell(panel3, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
+    lv_obj_set_grid_dsc_array(panel3, grid_2_col_dsc, grid_2_row_dsc);
+    lv_obj_set_grid_cell(panel3_title, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
+    lv_obj_set_grid_cell(slider1, LV_GRID_ALIGN_CENTER, 0, 2, LV_GRID_ALIGN_CENTER, 3, 1);
+    lv_obj_set_grid_cell(experience_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 2, 1);
+    lv_obj_set_grid_cell(sw2, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_CENTER, 6, 1);
+    lv_obj_set_grid_cell(hard_working_label, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 5, 1);
+    lv_obj_set_grid_cell(sw1, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_CENTER, 6, 1);
+    lv_obj_set_grid_cell(team_player_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 5, 1);
+    
 }
 
 static void analytics_create(lv_obj_t * parent)
@@ -478,13 +420,9 @@ static void analytics_create(lv_obj_t * parent)
     lv_obj_set_style_border_side(chart2, LV_BORDER_SIDE_LEFT | LV_BORDER_SIDE_BOTTOM, 0);
     lv_obj_set_style_radius(chart2, 0, 0);
 
-    if(disp_size == DISP_SMALL) {
-        lv_obj_set_style_pad_gap(chart2, 0, LV_PART_ITEMS);
-        lv_obj_set_style_pad_gap(chart2, 2, LV_PART_MAIN);
-    }
-    else if(disp_size == DISP_LARGE) {
-        lv_obj_set_style_pad_gap(chart2, 16, 0);
-    }
+    
+    lv_obj_set_style_pad_gap(chart2, 16, 0);
+    
 
     ser2 = lv_chart_add_series(chart2, lv_palette_lighten(LV_PALETTE_GREY, 1), LV_CHART_AXIS_PRIMARY_Y);
     lv_chart_set_next_value(chart2, ser2, lv_rand(10, 80));
@@ -636,17 +574,12 @@ static void analytics_create(lv_obj_t * parent)
     lv_anim_start(&a);
 
     lv_obj_update_layout(parent);
-    if(disp_size == DISP_MEDIUM) {
-        lv_obj_set_size(meter1, 200, 200);
-        lv_obj_set_size(meter2, 200, 200);
-        lv_obj_set_size(meter3, 200, 200);
-    }
-    else {
-        lv_coord_t meter_w = lv_obj_get_width(meter1);
-        lv_obj_set_height(meter1, meter_w);
-        lv_obj_set_height(meter2, meter_w);
-        lv_obj_set_height(meter3, meter_w);
-    }
+    
+    lv_coord_t meter_w = lv_obj_get_width(meter1);
+    lv_obj_set_height(meter1, meter_w);
+    lv_obj_set_height(meter2, meter_w);
+    lv_obj_set_height(meter3, meter_w);
+    
 
     lv_obj_align(mbps_label, LV_ALIGN_TOP_MID, 10, lv_pct(55));
     lv_obj_align_to(mbps_unit_label, mbps_label, LV_ALIGN_OUT_RIGHT_BOTTOM, 10, 0);
