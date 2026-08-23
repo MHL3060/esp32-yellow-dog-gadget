@@ -1,14 +1,11 @@
 #include <lvgl.h>
-#include "lv_asset.h"
 #include <Arduino_GFX_Library.h>
 #define TFT_BL 2
 
 /* Change to your screen resolution */
 #define screenWidth 800
 #define screenHeight 480
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t disp_draw_buf[screenWidth * screenHeight / 4];
-static lv_disp_drv_t disp_drv;
+EXT_RAM_ATTR static lv_color_t disp_draw_buf[screenWidth * screenHeight / 10];
 
 Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     41 /* DE */, 40 /* VSYNC */, 39 /* HSYNC */, 42 /* PCLK */,
@@ -23,17 +20,17 @@ Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
 #include "touch.h"
 
 /* Display flushing */
-void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
+void my_disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
   uint32_t w = (area->x2 - area->x1 + 1);
   uint32_t h = (area->y2 - area->y1 + 1);
 
-  gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
+  gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)px_map, w, h);
 
-  lv_disp_flush_ready(disp);
+  lv_display_flush_ready(disp);
 }
 
-void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
+void my_touchpad_read(lv_indev_t *indev_driver, lv_indev_data_t *data)
 {
     if (touch_touched())
     {
@@ -72,25 +69,18 @@ void setup()
   delay(10);
   touch_init();
 
-    lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, screenWidth * screenHeight / 10);
-
-    /* Initialize the display */
-    lv_disp_drv_init(&disp_drv);
-    /* Change the following line to your display resolution */
-    disp_drv.hor_res = screenWidth;
-    disp_drv.ver_res = screenHeight;
-    disp_drv.flush_cb = my_disp_flush;
-    disp_drv.draw_buf = &draw_buf;
-    lv_disp_drv_register(&disp_drv);
+    lv_display_t *display = lv_display_create(screenWidth, screenHeight);
+    lv_display_set_buffers(display, disp_draw_buf, NULL, sizeof(disp_draw_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_flush_cb(display, my_disp_flush);
 
     /* Initialize the (dummy) input device driver */
-    static lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = my_touchpad_read;
-    lv_indev_drv_register(&indev_drv);
+    lv_indev_t *indev = lv_indev_create();
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(indev, my_touchpad_read);
 
-    widgets();
+    lv_obj_t *label = lv_label_create(lv_screen_active());
+    lv_label_set_text(label, "LVGL 9.4");
+    lv_obj_center(label);
 }
 
 void loop()
