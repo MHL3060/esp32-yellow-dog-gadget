@@ -1,6 +1,17 @@
 #include <lvgl.h>
 #include <Arduino_GFX_Library.h>
+#include <WiFi.h>
+#include "app_data.h"
+#include "settings.h"
+#include "time_manager.h"
+#include "weather.h"
+#include "airquality.h"
+#include "sun_moon.h"
+#include "webconfig.h"
+#include "weather_ui.h"
 #define TFT_BL 2
+
+AppData g_data;
 
 /* Change to your screen resolution */
 #define screenWidth 800
@@ -78,13 +89,33 @@ void setup()
     lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(indev, my_touchpad_read);
 
-    lv_obj_t *label = lv_label_create(lv_screen_active());
-    lv_label_set_text(label, "LVGL 9.4");
-    lv_obj_center(label);
+    settings_begin();
+    WiFi.mode(WIFI_AP_STA);
+    if (g_settings.provisioned) {
+      WiFi.begin(g_settings.wifiSsid.c_str(), g_settings.wifiPass.c_str());
+      uint32_t started = millis();
+      while (WiFi.status() != WL_CONNECTED && millis() - started < 15000) delay(100);
+    }
+    webconfig_begin();
+    time_manager_begin(g_settings.tz.c_str());
+    weather_begin();
+    airquality_begin();
+    weather_ui_begin();
 }
 
 void loop()
 {
+  webconfig_tick();
+  if (webconfig_saved()) { delay(1000); ESP.restart(); }
+  if (WiFi.status() != WL_CONNECTED && g_settings.provisioned) {
+    static uint32_t last_retry = 0;
+    if (millis() - last_retry >= 10000) { last_retry = millis(); WiFi.reconnect(); }
+  }
+  static uint32_t last_sun = 0;
+  if (millis() - last_sun >= 60000) { last_sun = millis(); sunmoon_recompute(); }
+  weather_tick();
+  airquality_tick();
+  weather_ui_tick();
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);
 }
