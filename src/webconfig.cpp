@@ -73,7 +73,7 @@ static void not_found() { server.sendHeader("Location", "http://" + WiFi.softAPI
 void webconfig_begin() {
   if (running) return;
   WiFi.mode(WIFI_AP_STA);
-  ap_name = "WeatherClock-" + String((uint32_t)(ESP.getEfuseMac() & 0xffff), HEX);
+  ap_name = "hub-" + String((uint32_t)(ESP.getEfuseMac() & 0xffff), HEX);
   ap = WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0);
   if (ap) {
     WiFi.softAP(ap_name.c_str());

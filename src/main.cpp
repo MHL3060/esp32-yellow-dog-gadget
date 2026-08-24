@@ -130,7 +130,7 @@ void setup()
         }
       }
     } else {
-      Serial.println("WiFi credentials are not configured; use the WeatherClock setup AP.");
+      Serial.println("WiFi credentials are not configured; use the hub setup AP.");
     }
     webconfig_begin();
     time_manager_begin(g_settings.tz.c_str());
