@@ -71,17 +71,13 @@ void setup()
   delay(100);
   Serial.println("Application setup started");
 
-  // Init Display
-  gfx->begin();
 #ifdef TFT_BL
   pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
-
-  ledcSetup(0, 300, 8);
-  ledcAttachPin(TFT_BL, 0);
-  ledcWrite(0, 255); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
-  
+  digitalWrite(TFT_BL, LOW);
 #endif
+
+  // Init Display
+  gfx->begin();
   lv_init();
   lv_tick_set_cb(lvgl_tick);
 
@@ -138,6 +134,13 @@ void setup()
     weather_begin();
     airquality_begin();
     weather_ui_begin();
+    lv_timer_handler();
+
+  #ifdef TFT_BL
+    ledcSetup(0, 300, 8);
+    ledcAttachPin(TFT_BL, 0);
+    ledcWrite(0, 255); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
+  #endif
 }
 
 void loop()
