@@ -42,9 +42,9 @@ static String html_escape(const String &value) {
   return out;
 }
 static void root() {
-  String page = "<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'><title>Weather Clock</title>";
+  String page = "<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'><title>Dashboard</title>";
   page += "<style>body{font:16px sans-serif;max-width:520px;margin:24px auto;padding:0 16px;background:#101820;color:#eee}input,select{box-sizing:border-box;width:100%;padding:10px;margin:5px 0 14px;background:#202c35;color:#fff;border:1px solid #52606b;border-radius:4px}button{padding:12px;width:100%;background:#16b8a6;color:#fff;border:0;border-radius:4px}</style>";
-  page += "<h1>Weather Clock</h1><form method=post action=/save>Wi-Fi SSID<input name=ssid required value='" + html_escape(g_settings.wifiSsid) + "'>Password<input name=pass type=password placeholder='leave blank to keep current'>Latitude<input name=lat type=number step=any min=-90 max=90 required value='" + String(g_settings.latitude, 4) + "'>Longitude<input name=lon type=number step=any min=-180 max=180 required value='" + String(g_settings.longitude, 4) + "'>Time zone<select name=tzsel>";
+  page += "<h1>Dashboard</h1><form method=post action=/save>Wi-Fi SSID<input name=ssid required value='" + html_escape(g_settings.wifiSsid) + "'>Password<input name=pass type=password placeholder='leave blank to keep current'>Latitude<input name=lat type=number step=any min=-90 max=90 required value='" + String(g_settings.latitude, 4) + "'>Longitude<input name=lon type=number step=any min=-180 max=180 required value='" + String(g_settings.longitude, 4) + "'>Time zone<select name=tzsel>";
   bool time_zone_matched = false;
   for (size_t option = 0; option < time_zone_option_count; option++) {
     bool selected = g_settings.tz == time_zone_options[option].value;

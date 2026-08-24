@@ -15,6 +15,7 @@
 static lv_obj_t *clock_time, *clock_date, *weather_icon, *weather_content, *air_content, *stock_content, *footer;
 static lv_obj_t *stock_cells[5][6];
 static lv_obj_t *stock_header_bold[6];
+static lv_obj_t *dashboard_panel, *stock_panel;
 static uint32_t last_draw;
 static char previous_clock_time[32] = "";
 static char previous_clock_date[64] = "";
@@ -27,6 +28,22 @@ static lv_style_t style_panel, style_small_heading, style_small_content;
 static lv_style_t style_sun, style_cloud, style_rain;
 static lv_style_t style_stock;
 static lv_style_t style_stock_updated;
+static lv_style_t style_tab, style_tab_active;
+
+static void select_tab(int tab) {
+  if (tab == 0) {
+    lv_obj_clear_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+static void tab_event(lv_event_t *event) {
+  if (lv_event_get_code(event) == LV_EVENT_CLICKED) {
+    select_tab((int)(intptr_t)lv_event_get_user_data(event));
+  }
+}
 
 static void set_label(lv_obj_t *obj, char *previous, size_t previous_size, const char *text, const lv_style_t *style) {
   if (strcmp(previous, text) == 0) return;
@@ -160,6 +177,8 @@ void weather_ui_begin() {
   lv_style_init(&style_clock); lv_style_set_text_color(&style_clock, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_clock, &lv_font_montserrat_48); lv_style_set_text_align(&style_clock, LV_TEXT_ALIGN_CENTER);
   lv_style_init(&style_footer); lv_style_set_text_color(&style_footer, lv_color_hex(0x91a8ad)); lv_style_set_text_font(&style_footer, &lv_font_montserrat_12);
   lv_style_init(&style_panel); lv_style_set_bg_color(&style_panel, lv_color_hex(0x10252d)); lv_style_set_border_width(&style_panel, 1); lv_style_set_border_color(&style_panel, lv_color_hex(0x29444d));
+  lv_style_init(&style_tab); lv_style_set_bg_color(&style_tab, lv_color_hex(0x16333d)); lv_style_set_bg_opa(&style_tab, LV_OPA_COVER); lv_style_set_text_color(&style_tab, lv_color_hex(0x91a8ad));
+  lv_style_init(&style_tab_active); lv_style_set_bg_color(&style_tab_active, lv_color_hex(0x35d0c2)); lv_style_set_bg_opa(&style_tab_active, LV_OPA_COVER); lv_style_set_text_color(&style_tab_active, lv_color_hex(0x07151c));
   lv_style_init(&style_small_heading); lv_style_set_text_color(&style_small_heading, lv_color_hex(0x35d0c2)); lv_style_set_text_font(&style_small_heading, &lv_font_montserrat_24);
   lv_style_init(&style_small_content); lv_style_set_text_color(&style_small_content, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_small_content, &lv_font_montserrat_18); lv_style_set_text_align(&style_small_content, LV_TEXT_ALIGN_CENTER);
   lv_style_init(&style_stock); lv_style_set_text_color(&style_stock, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_stock, &lv_font_montserrat_14); lv_style_set_text_align(&style_stock, LV_TEXT_ALIGN_LEFT);
@@ -168,8 +187,10 @@ void weather_ui_begin() {
   lv_style_init(&style_cloud); lv_style_set_bg_color(&style_cloud, lv_color_hex(0x9bb4bd)); lv_style_set_bg_opa(&style_cloud, LV_OPA_COVER);
   lv_style_init(&style_rain); lv_style_set_bg_color(&style_rain, lv_color_hex(0x4aa8df)); lv_style_set_bg_opa(&style_rain, LV_OPA_COVER);
   lv_obj_t *screen = lv_screen_active(); lv_obj_add_style(screen, &style_bg, 0);
-  lv_obj_t *clock_panel = lv_obj_create(screen); lv_obj_set_size(clock_panel, 400, 480); lv_obj_set_pos(clock_panel, 0, 0); lv_obj_add_style(clock_panel, &style_panel, 0);
-  lv_obj_t *data_panel = lv_obj_create(screen); lv_obj_set_size(data_panel, 400, 480); lv_obj_set_pos(data_panel, 400, 0); lv_obj_add_style(data_panel, &style_panel, 0);
+  dashboard_panel = lv_obj_create(screen); lv_obj_set_size(dashboard_panel, 400, 440); lv_obj_set_pos(dashboard_panel, 0, 0); lv_obj_add_style(dashboard_panel, &style_panel, 0);
+  stock_panel = lv_obj_create(screen); lv_obj_set_size(stock_panel, 400, 440); lv_obj_set_pos(stock_panel, 400, 0); lv_obj_add_style(stock_panel, &style_panel, 0);
+  lv_obj_t *clock_panel = dashboard_panel;
+  lv_obj_t *data_panel = stock_panel;
   lv_obj_clear_flag(clock_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(data_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_pad_all(clock_panel, 0, 0);
@@ -201,6 +222,12 @@ void weather_ui_begin() {
     lv_obj_add_style(stock_header_bold[column], &style_stock, 0);
     if (column > 0) lv_obj_set_style_text_align(stock_header_bold[column], LV_TEXT_ALIGN_RIGHT, 0);
   }
+  lv_obj_t *tab_bar = lv_obj_create(screen); lv_obj_remove_style_all(tab_bar); lv_obj_set_size(tab_bar, 800, 40); lv_obj_set_pos(tab_bar, 0, 440); lv_obj_clear_flag(tab_bar, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *dashboard_tab = lv_btn_create(tab_bar); lv_obj_set_size(dashboard_tab, 400, 40); lv_obj_set_pos(dashboard_tab, 0, 0); lv_obj_add_style(dashboard_tab, &style_tab_active, 0); lv_obj_add_event_cb(dashboard_tab, tab_event, LV_EVENT_CLICKED, (void *)(intptr_t)0);
+  lv_obj_t *dashboard_label = lv_label_create(dashboard_tab); lv_label_set_text(dashboard_label, "DASHBOARD"); lv_obj_center(dashboard_label);
+  lv_obj_t *stocks_tab = lv_btn_create(tab_bar); lv_obj_set_size(stocks_tab, 400, 40); lv_obj_set_pos(stocks_tab, 400, 0); lv_obj_add_style(stocks_tab, &style_tab, 0); lv_obj_add_event_cb(stocks_tab, tab_event, LV_EVENT_CLICKED, (void *)(intptr_t)1);
+  lv_obj_t *stocks_label = lv_label_create(stocks_tab); lv_label_set_text(stocks_label, "EMPTY"); lv_obj_center(stocks_label);
+  select_tab(0);
   redraw();
 }
 void weather_ui_tick() {
