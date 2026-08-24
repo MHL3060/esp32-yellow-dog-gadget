@@ -14,10 +14,11 @@ static lv_obj_t *panel, *heading, *content, *footer;
 static int scene = 0;
 static bool pinned = false;
 static uint32_t last_change;
-static lv_style_t style_bg, style_heading, style_content, style_footer;
+static lv_style_t style_bg, style_heading, style_content, style_clock, style_footer;
 
 static void set_label(lv_obj_t *obj, const char *text, const lv_style_t *style) {
   lv_label_set_text(obj, text); lv_obj_add_style(obj, style, 0);
+  lv_obj_invalidate(obj);
 }
 static const char *condition(int code) {
   if (code == 0) return "Clear"; if (code <= 2) return "Partly cloudy"; if (code == 3) return "Cloudy";
@@ -31,8 +32,13 @@ static void touch_event(lv_event_t *event) {
 static void draw_clock() {
   struct tm t; char text[256];
   if (time_manager_now(t)) strftime(text, sizeof(text), "%H:%M:%S\n%A, %d %B %Y", &t);
+  else if (WiFi.status() != WL_CONNECTED) {
+    unsigned long elapsed = millis() / 1000;
+    snprintf(text, sizeof(text), "%02lu:%02lu:%02lu\nWi-Fi offline | uptime",
+             elapsed / 3600, (elapsed / 60) % 60, elapsed % 60);
+  }
   else snprintf(text, sizeof(text), "--:--:--\nWaiting for network time");
-  set_label(heading, "CLOCK", &style_heading); set_label(content, text, &style_content);
+  set_label(heading, "CLOCK", &style_heading); set_label(content, text, &style_clock);
 }
 static void draw_weather() {
   char text[512];
@@ -67,6 +73,7 @@ void weather_ui_begin() {
   lv_style_init(&style_bg); lv_style_set_bg_color(&style_bg, lv_color_hex(0x07151c));
   lv_style_init(&style_heading); lv_style_set_text_color(&style_heading, lv_color_hex(0x35d0c2)); lv_style_set_text_font(&style_heading, &lv_font_montserrat_32);
   lv_style_init(&style_content); lv_style_set_text_color(&style_content, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_content, &lv_font_montserrat_28); lv_style_set_text_align(&style_content, LV_TEXT_ALIGN_CENTER);
+  lv_style_init(&style_clock); lv_style_set_text_color(&style_clock, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_clock, &lv_font_montserrat_48); lv_style_set_text_align(&style_clock, LV_TEXT_ALIGN_CENTER);
   lv_style_init(&style_footer); lv_style_set_text_color(&style_footer, lv_color_hex(0x91a8ad)); lv_style_set_text_font(&style_footer, &lv_font_montserrat_16);
   lv_obj_t *screen = lv_screen_active(); lv_obj_add_style(screen, &style_bg, 0);
   panel = lv_btn_create(screen); lv_obj_set_size(panel, 800, 480); lv_obj_center(panel); lv_obj_add_event_cb(panel, touch_event, LV_EVENT_ALL, NULL);

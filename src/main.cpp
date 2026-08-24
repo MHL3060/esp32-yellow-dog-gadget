@@ -13,6 +13,10 @@
 
 AppData g_data;
 
+static bool wifi_has_ip() {
+  return WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0);
+}
+
 /* Change to your screen resolution */
 #define screenWidth 800
 #define screenHeight 480
@@ -57,8 +61,16 @@ void my_touchpad_read(lv_indev_t *indev_driver, lv_indev_data_t *data)
     }
 }
 
+static uint32_t lvgl_tick() {
+  return (uint32_t)millis();
+}
+
 void setup()
 {
+  Serial.begin(115200);
+  delay(100);
+  Serial.println("Application setup started");
+
   // Init Display
   gfx->begin();
 #ifdef TFT_BL
@@ -71,6 +83,7 @@ void setup()
   
 #endif
   lv_init();
+  lv_tick_set_cb(lvgl_tick);
 
     // Init touch device
   pinMode(TOUCH_GT911_RST, OUTPUT);
@@ -78,7 +91,9 @@ void setup()
   delay(10);
   digitalWrite(TOUCH_GT911_RST, HIGH);
   delay(10);
+  Serial.println("Touch init: starting");
   touch_init();
+  Serial.println("Touch init: complete");
 
     lv_display_t *display = lv_display_create(screenWidth, screenHeight);
     lv_display_set_buffers(display, disp_draw_buf, NULL, sizeof(disp_draw_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
@@ -90,11 +105,33 @@ void setup()
     lv_indev_set_read_cb(indev, my_touchpad_read);
 
     settings_begin();
+    Serial.printf("WiFi config: provisioned=%s ssid=\"%s\"\n",
+            g_settings.provisioned ? "yes" : "no", g_settings.wifiSsid.c_str());
     WiFi.mode(WIFI_AP_STA);
+    WiFi.setAutoReconnect(true);
     if (g_settings.provisioned) {
       WiFi.begin(g_settings.wifiSsid.c_str(), g_settings.wifiPass.c_str());
       uint32_t started = millis();
-      while (WiFi.status() != WL_CONNECTED && millis() - started < 15000) delay(100);
+      while (!wifi_has_ip() && millis() - started < 20000) delay(100);
+      Serial.printf("WiFi status=%d IP=%s RSSI=%d\n", WiFi.status(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
+      if (!wifi_has_ip()) {
+        WiFi.setAutoReconnect(false);
+        WiFi.disconnect(false, false);
+        delay(100);
+        int networkCount = WiFi.scanNetworks();
+        if (networkCount >= 0) {
+          Serial.printf("WiFi scan found %d networks:\n", networkCount);
+          for (int network = 0; network < networkCount; network++) {
+            Serial.printf("  %s (RSSI %d, channel %d)\n",
+                          WiFi.SSID(network).c_str(), WiFi.RSSI(network), WiFi.channel(network));
+          }
+          WiFi.scanDelete();
+        } else {
+          Serial.printf("WiFi scan failed with code %d\n", networkCount);
+        }
+      }
+    } else {
+      Serial.println("WiFi credentials are not configured; use the WeatherClock setup AP.");
     }
     webconfig_begin();
     time_manager_begin(g_settings.tz.c_str());
@@ -107,7 +144,7 @@ void loop()
 {
   webconfig_tick();
   if (webconfig_saved()) { delay(1000); ESP.restart(); }
-  if (WiFi.status() != WL_CONNECTED && g_settings.provisioned) {
+  if (!wifi_has_ip() && g_settings.provisioned) {
     static uint32_t last_retry = 0;
     if (millis() - last_retry >= 10000) { last_retry = millis(); WiFi.reconnect(); }
   }

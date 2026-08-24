@@ -39,8 +39,12 @@ void webconfig_begin() {
   if (running) return;
   WiFi.mode(WIFI_AP_STA);
   ap_name = "WeatherClock-" + String((uint32_t)(ESP.getEfuseMac() & 0xffff), HEX);
-  ap = WiFi.status() != WL_CONNECTED;
-  if (ap) { WiFi.softAP(ap_name.c_str()); dns.start(53, "*", WiFi.softAPIP()); }
+  ap = WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0);
+  if (ap) {
+    WiFi.softAP(ap_name.c_str());
+    dns.start(53, "*", WiFi.softAPIP());
+    Serial.printf("Setup AP: SSID=%s IP=%s\n", ap_name.c_str(), WiFi.softAPIP().toString().c_str());
+  }
   server.on("/", HTTP_GET, root); server.on("/save", HTTP_POST, save); server.onNotFound(not_found); server.begin(); running = true;
 }
 void webconfig_tick() { if (!running) return; if (ap) dns.processNextRequest(); server.handleClient(); }
