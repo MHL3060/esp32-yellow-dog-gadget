@@ -1,6 +1,6 @@
 /**
  * @file lv_conf.h
- * Configuration file for v8.3.6
+ * Configuration file for v9.5.0
  */
 
 /*
@@ -16,8 +16,6 @@
 
 #ifndef LV_CONF_H
 #define LV_CONF_H
-
-#include <stdint.h>
 
 /*====================
    COLOR SETTINGS
@@ -270,19 +268,6 @@
  * Others
  *-----------*/
 
-/*1: Show CPU usage and FPS count*/
-#define LV_USE_PERF_MONITOR 1
-#if LV_USE_PERF_MONITOR
-    #define LV_USE_PERF_MONITOR_POS LV_ALIGN_BOTTOM_RIGHT
-#endif
-
-/*1: Show the used memory and the memory fragmentation
- * Requires LV_MEM_CUSTOM = 0*/
-#define LV_USE_MEM_MONITOR 1
-#if LV_USE_MEM_MONITOR
-    #define LV_USE_MEM_MONITOR_POS LV_ALIGN_BOTTOM_LEFT
-#endif
-
 /*1: Draw random colored rectangles over the redrawn areas*/
 #define LV_USE_REFR_DEBUG 0
 
@@ -382,8 +367,8 @@
 #define LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
 
 /*Pixel perfect monospace fonts*/
-#define LV_FONT_UNSCII_8  0
-#define LV_FONT_UNSCII_16 0
+#define LV_FONT_UNSCII_8  1
+#define LV_FONT_UNSCII_16 1
 
 /*Optionally declare custom fonts here.
  *You can use these fonts as default font too and they will be available globally.

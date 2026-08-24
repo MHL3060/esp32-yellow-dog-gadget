@@ -9,7 +9,7 @@
  #define TOUCH_GT911
  #define TOUCH_GT911_SCL 20
  #define TOUCH_GT911_SDA 19
- #define TOUCH_GT911_INT -1
+ #define TOUCH_GT911_INT 18
  #define TOUCH_GT911_RST 38
  #define TOUCH_GT911_ROTATION ROTATION_NORMAL
  #define TOUCH_MAP_X1 800
@@ -27,13 +27,15 @@ TAMC_GT911 ts = TAMC_GT911(TOUCH_GT911_SDA, TOUCH_GT911_SCL, TOUCH_GT911_INT, TO
 
 void touch_init()
 {
-  Wire.begin(TOUCH_GT911_SDA, TOUCH_GT911_SCL);
   ts.begin();
   ts.setRotation(TOUCH_GT911_ROTATION);
 }
 
 bool touch_touched()
 {
+  static uint32_t last_read = 0;
+  if (millis() - last_read < 50) return false;
+  last_read = millis();
   ts.read();
   if (ts.isTouched)
   {
