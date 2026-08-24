@@ -12,6 +12,11 @@ struct Settings {
   float longitude = -0.0015f;
   String tz = "UTC0";
   String stockSymbols = "AAPL,MSFT,GOOGL";
+  String sshHost;
+  uint16_t sshPort = 22;
+  String sshUser;
+  String sshPassword;
+  uint8_t brightness = 255;
   uint8_t units = UNITS_METRIC;
   bool provisioned = false;
 };

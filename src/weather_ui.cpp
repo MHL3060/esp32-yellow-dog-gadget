@@ -7,17 +7,25 @@
 #include "webconfig.h"
 #include "stocks.h"
 #include "internet_ip.h"
+#include "ssh_terminal.h"
 #include <lvgl.h>
 #include <WiFi.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-static lv_obj_t *clock_time, *clock_date, *weather_icon, *weather_content, *air_content, *stock_content, *footer;
+static lv_obj_t *clock_time, *clock_seconds, *clock_meridiem, *clock_date, *weather_icon, *weather_content, *air_content, *stock_content, *footer;
 static lv_obj_t *stock_cells[5][6];
 static lv_obj_t *stock_header_bold[6];
-static lv_obj_t *dashboard_panel, *stock_panel;
+static lv_obj_t *dashboard_panel, *stock_panel, *ssh_panel;
+static lv_obj_t *dashboard_tab, *ssh_tab;
+static lv_obj_t *settings_tab, *settings_panel, *brightness_value;
+static lv_obj_t *ssh_output, *ssh_command;
+static lv_obj_t *ssh_modal, *ssh_host_input, *ssh_port_input, *ssh_user_input, *ssh_password_input;
 static uint32_t last_draw;
 static char previous_clock_time[32] = "";
+static char previous_clock_seconds[8] = "";
+static char previous_clock_meridiem[8] = "";
 static char previous_clock_date[64] = "";
 static char previous_weather[512] = "";
 static char previous_air[256] = "";
@@ -30,17 +38,97 @@ static lv_style_t style_stock;
 static lv_style_t style_stock_updated;
 static lv_style_t style_tab, style_tab_active;
 
+static void brightness_event(lv_event_t *event) {
+  if (lv_event_get_code(event) != LV_EVENT_VALUE_CHANGED && lv_event_get_code(event) != LV_EVENT_RELEASED) return;
+  lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(event);
+  if (lv_event_get_code(event) == LV_EVENT_VALUE_CHANGED) {
+    g_settings.brightness = lv_slider_get_value(slider);
+    ledcWrite(0, g_settings.brightness);
+    char value[8]; snprintf(value, sizeof(value), "%u%%", (unsigned)(g_settings.brightness * 100 / 255));
+    lv_label_set_text(brightness_value, value);
+  } else {
+    settings_save();
+  }
+}
+
+static void ssh_send_event(lv_event_t *event) {
+  if (lv_event_get_code(event) == LV_EVENT_CLICKED) {
+    const char *command = lv_textarea_get_text(ssh_command);
+    if (command && command[0]) {
+      ssh_terminal_send(command);
+      lv_textarea_set_text(ssh_command, "");
+    }
+  }
+}
+static void ssh_connect_event(lv_event_t *event) {
+  if (lv_event_get_code(event) != LV_EVENT_CLICKED) return;
+  g_settings.sshHost = lv_textarea_get_text(ssh_host_input);
+  g_settings.sshPort = constrain(atoi(lv_textarea_get_text(ssh_port_input)), 1, 65535);
+  g_settings.sshUser = lv_textarea_get_text(ssh_user_input);
+  g_settings.sshPassword = lv_textarea_get_text(ssh_password_input);
+  settings_save();
+  ssh_terminal_connect_now();
+  lv_obj_del(ssh_modal);
+  ssh_modal = nullptr;
+}
+static void open_ssh_modal(lv_event_t *) {
+  if (ssh_modal) return;
+  ssh_modal = lv_obj_create(lv_screen_active());
+  lv_obj_set_size(ssh_modal, 800, 440); lv_obj_set_pos(ssh_modal, 0, 0);
+  lv_obj_set_style_bg_color(ssh_modal, lv_color_hex(0x07151c), 0);
+  lv_obj_set_style_bg_opa(ssh_modal, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_all(ssh_modal, 10, 0);
+  lv_obj_clear_flag(ssh_modal, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *title = lv_label_create(ssh_modal); lv_label_set_text(title, "SSH CONNECTION"); lv_obj_set_pos(title, 10, 8);
+  ssh_host_input = lv_textarea_create(ssh_modal); lv_obj_set_size(ssh_host_input, 380, 38); lv_obj_set_pos(ssh_host_input, 10, 38); lv_textarea_set_one_line(ssh_host_input, true); lv_textarea_set_text(ssh_host_input, g_settings.sshHost.c_str()); lv_textarea_set_placeholder_text(ssh_host_input, "Hostname or IP address");
+  ssh_port_input = lv_textarea_create(ssh_modal); lv_obj_set_size(ssh_port_input, 100, 38); lv_obj_set_pos(ssh_port_input, 400, 38); lv_textarea_set_one_line(ssh_port_input, true); lv_textarea_set_text(ssh_port_input, String(g_settings.sshPort).c_str()); lv_textarea_set_placeholder_text(ssh_port_input, "Port");
+  ssh_user_input = lv_textarea_create(ssh_modal); lv_obj_set_size(ssh_user_input, 380, 38); lv_obj_set_pos(ssh_user_input, 10, 82); lv_textarea_set_one_line(ssh_user_input, true); lv_textarea_set_text(ssh_user_input, g_settings.sshUser.c_str()); lv_textarea_set_placeholder_text(ssh_user_input, "Username");
+  ssh_password_input = lv_textarea_create(ssh_modal); lv_obj_set_size(ssh_password_input, 380, 38); lv_obj_set_pos(ssh_password_input, 10, 126); lv_textarea_set_one_line(ssh_password_input, true); lv_textarea_set_password_mode(ssh_password_input, true); lv_textarea_set_text(ssh_password_input, g_settings.sshPassword.c_str()); lv_textarea_set_placeholder_text(ssh_password_input, "Password");
+  lv_obj_t *connect = lv_btn_create(ssh_modal); lv_obj_set_size(connect, 160, 38); lv_obj_set_pos(connect, 520, 82); lv_obj_add_event_cb(connect, ssh_connect_event, LV_EVENT_CLICKED, nullptr); lv_obj_t *connect_label = lv_label_create(connect); lv_label_set_text(connect_label, "CONNECT"); lv_obj_center(connect_label);
+  lv_obj_t *cancel = lv_btn_create(ssh_modal); lv_obj_set_size(cancel, 160, 38); lv_obj_set_pos(cancel, 520, 126); lv_obj_add_event_cb(cancel, [](lv_event_t *) { lv_obj_del(ssh_modal); ssh_modal = nullptr; }, LV_EVENT_CLICKED, nullptr); lv_obj_t *cancel_label = lv_label_create(cancel); lv_label_set_text(cancel_label, "CANCEL"); lv_obj_center(cancel_label);
+  lv_obj_t *keyboard = lv_keyboard_create(ssh_modal); lv_obj_set_size(keyboard, 780, 260); lv_obj_set_pos(keyboard, 10, 170); lv_keyboard_set_textarea(keyboard, ssh_host_input);
+  auto select_ssh_field = [](lv_event_t *event) {
+    lv_keyboard_set_textarea((lv_obj_t *)lv_event_get_user_data(event), (lv_obj_t *)lv_event_get_target(event));
+  };
+  lv_obj_add_event_cb(ssh_host_input, select_ssh_field, LV_EVENT_FOCUSED, keyboard);
+  lv_obj_add_event_cb(ssh_port_input, select_ssh_field, LV_EVENT_FOCUSED, keyboard);
+  lv_obj_add_event_cb(ssh_user_input, select_ssh_field, LV_EVENT_FOCUSED, keyboard);
+  lv_obj_add_event_cb(ssh_password_input, select_ssh_field, LV_EVENT_FOCUSED, keyboard);
+}
+
 static void select_tab(int tab) {
+  if (ssh_modal) {
+    lv_obj_del(ssh_modal);
+    ssh_modal = nullptr;
+  }
   if (tab == 0) {
     lv_obj_clear_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_style(dashboard_tab, &style_tab_active, 0);
+    lv_obj_add_style(ssh_tab, &style_tab, 0);
+    lv_obj_add_style(settings_tab, &style_tab, 0);
+  } else if (tab == 1) {
+    lv_obj_add_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_style(dashboard_tab, &style_tab, 0);
+    lv_obj_add_style(ssh_tab, &style_tab_active, 0);
+    lv_obj_add_style(settings_tab, &style_tab, 0);
   } else {
     lv_obj_add_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_style(dashboard_tab, &style_tab, 0);
+    lv_obj_add_style(ssh_tab, &style_tab, 0);
+    lv_obj_add_style(settings_tab, &style_tab_active, 0);
   }
 }
 static void tab_event(lv_event_t *event) {
-  if (lv_event_get_code(event) == LV_EVENT_CLICKED) {
+  if (lv_event_get_code(event) == LV_EVENT_RELEASED) {
     select_tab((int)(intptr_t)lv_event_get_user_data(event));
   }
 }
@@ -84,22 +172,30 @@ static void draw_weather_icon(int code) {
   }
 }
 static void draw_clock() {
-  struct tm t; char time_text[32], date_text[64];
+  struct tm t; char time_text[16], seconds_text[8], meridiem_text[8], date_text[64];
   static const char *weekdays[] = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
   if (time_manager_now(t)) {
-    strftime(time_text, sizeof(time_text), "%I:%M:%S %p", &t);
+    strftime(time_text, sizeof(time_text), "%I:%M", &t);
+    strftime(seconds_text, sizeof(seconds_text), ":%S", &t);
+    strftime(meridiem_text, sizeof(meridiem_text), "%p", &t);
     snprintf(date_text, sizeof(date_text), "%s %04d/%02d/%02d",
              weekdays[t.tm_wday], t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
   } else if (WiFi.status() != WL_CONNECTED) {
     unsigned long elapsed = millis() / 1000;
-    snprintf(time_text, sizeof(time_text), "%02lu:%02lu:%02lu",
+    snprintf(time_text, sizeof(time_text), "%02lu:%02lu",
              elapsed / 3600, (elapsed / 60) % 60, elapsed % 60);
+    snprintf(seconds_text, sizeof(seconds_text), ":%02lu", elapsed % 60);
+    meridiem_text[0] = '\0';
     snprintf(date_text, sizeof(date_text), "Wi-Fi offline | uptime");
   } else {
-    snprintf(time_text, sizeof(time_text), "--:--:--");
+    snprintf(time_text, sizeof(time_text), "--:--");
+    snprintf(seconds_text, sizeof(seconds_text), ":--");
+    meridiem_text[0] = '\0';
     snprintf(date_text, sizeof(date_text), "Waiting for network time");
   }
   set_label(clock_time, previous_clock_time, sizeof(previous_clock_time), time_text, &style_clock);
+  set_label(clock_seconds, previous_clock_seconds, sizeof(previous_clock_seconds), seconds_text, &style_clock);
+  set_label(clock_meridiem, previous_clock_meridiem, sizeof(previous_clock_meridiem), meridiem_text, &style_clock);
   set_label(clock_date, previous_clock_date, sizeof(previous_clock_date), date_text, &style_content);
 }
 static void draw_weather() {
@@ -145,9 +241,15 @@ static void draw_stocks() {
     sscanf(line.c_str(), "%23s %23s %23s %23s %23s %23s", values[0], values[1], values[2], values[3], values[4], values[5]);
     for (int column = 0; column < 6; column++) {
       lv_label_set_text(stock_cells[row][column], values[column]);
+      if (row > 0 && (column == 3 || column == 4) && strcmp(values[column], "--") != 0 && values[column][0] != '\0') {
+        lv_obj_set_style_text_color(stock_cells[row][column], atof(values[column]) >= 0 ? lv_color_hex(0x55d68a) : lv_color_hex(0xff6b6b), 0);
+      } else {
+        lv_obj_set_style_text_color(stock_cells[row][column], lv_color_hex(0xf4f7f5), 0);
+      }
       lv_obj_invalidate(stock_cells[row][column]);
       if (row == 0) {
         lv_label_set_text(stock_header_bold[column], values[column]);
+        lv_obj_set_style_text_color(stock_header_bold[column], lv_color_hex(0xf4f7f5), 0);
         lv_obj_invalidate(stock_header_bold[column]);
       }
     }
@@ -161,11 +263,22 @@ static void draw_stocks() {
   String updatedText = stocks_updated_display();
   set_label(stock_content, previous_stocks, sizeof(previous_stocks), updatedText.c_str(), &style_stock);
 }
+static void draw_ssh() {
+  static char previous_output[1900] = "";
+  String output = ssh_terminal_output();
+  if (output != previous_output) {
+    lv_textarea_set_text(ssh_output, output.c_str());
+    lv_textarea_set_cursor_pos(ssh_output, LV_TEXTAREA_CURSOR_LAST);
+    strncpy(previous_output, output.c_str(), sizeof(previous_output) - 1);
+    previous_output[sizeof(previous_output) - 1] = '\0';
+  }
+}
 static void redraw() {
   draw_clock();
   draw_weather();
   draw_air();
   draw_stocks();
+  draw_ssh();
   String status = "Internet: " + internet_ip_display() + "  Wi-Fi: " +
                   (WiFi.status() == WL_CONNECTED ? webconfig_ip() : "offline");
   set_label(footer, previous_footer, sizeof(previous_footer), status.c_str(), &style_footer);
@@ -189,14 +302,20 @@ void weather_ui_begin() {
   lv_obj_t *screen = lv_screen_active(); lv_obj_add_style(screen, &style_bg, 0);
   dashboard_panel = lv_obj_create(screen); lv_obj_set_size(dashboard_panel, 400, 440); lv_obj_set_pos(dashboard_panel, 0, 0); lv_obj_add_style(dashboard_panel, &style_panel, 0);
   stock_panel = lv_obj_create(screen); lv_obj_set_size(stock_panel, 400, 440); lv_obj_set_pos(stock_panel, 400, 0); lv_obj_add_style(stock_panel, &style_panel, 0);
+  ssh_panel = lv_obj_create(screen); lv_obj_set_size(ssh_panel, 800, 440); lv_obj_set_pos(ssh_panel, 0, 0); lv_obj_add_style(ssh_panel, &style_panel, 0);
+  settings_panel = lv_obj_create(screen); lv_obj_set_size(settings_panel, 800, 440); lv_obj_set_pos(settings_panel, 0, 0); lv_obj_add_style(settings_panel, &style_panel, 0);
   lv_obj_t *clock_panel = dashboard_panel;
   lv_obj_t *data_panel = stock_panel;
   lv_obj_clear_flag(clock_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(data_panel, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(ssh_panel, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(settings_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_pad_all(clock_panel, 0, 0);
   lv_obj_set_style_pad_all(data_panel, 0, 0);
 
-  clock_time = lv_label_create(clock_panel); lv_obj_set_size(clock_time, 380, 60); lv_obj_align(clock_time, LV_ALIGN_TOP_MID, 0, 20);
+  clock_time = lv_label_create(clock_panel); lv_obj_set_size(clock_time, 190, 60); lv_obj_set_pos(clock_time, 10, 20); lv_obj_set_style_text_align(clock_time, LV_TEXT_ALIGN_RIGHT, 0);
+  clock_seconds = lv_label_create(clock_panel); lv_obj_set_size(clock_seconds, 76, 60); lv_obj_set_pos(clock_seconds, 204, 20); lv_obj_set_style_text_align(clock_seconds, LV_TEXT_ALIGN_LEFT, 0);
+  clock_meridiem = lv_label_create(clock_panel); lv_obj_set_size(clock_meridiem, 100, 60); lv_obj_set_pos(clock_meridiem, 286, 20); lv_obj_set_style_text_align(clock_meridiem, LV_TEXT_ALIGN_LEFT, 0);
   clock_date = lv_label_create(clock_panel); lv_obj_set_size(clock_date, 380, 36); lv_obj_set_style_text_align(clock_date, LV_TEXT_ALIGN_CENTER, 0); lv_obj_align(clock_date, LV_ALIGN_TOP_MID, 0, 88);
   footer = lv_label_create(clock_panel); lv_obj_set_size(footer, 380, 24); lv_obj_set_style_text_align(footer, LV_TEXT_ALIGN_CENTER, 0); lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, -12);
   weather_icon = lv_obj_create(clock_panel); lv_obj_remove_style_all(weather_icon); lv_obj_set_size(weather_icon, 66, 66); lv_obj_set_pos(weather_icon, 8, 132);
@@ -222,11 +341,39 @@ void weather_ui_begin() {
     lv_obj_add_style(stock_header_bold[column], &style_stock, 0);
     if (column > 0) lv_obj_set_style_text_align(stock_header_bold[column], LV_TEXT_ALIGN_RIGHT, 0);
   }
+  ssh_output = lv_textarea_create(ssh_panel);
+  lv_obj_set_size(ssh_output, 780, 280);
+  lv_obj_set_pos(ssh_output, 10, 14);
+  lv_textarea_set_text(ssh_output, "SSH terminal\n");
+  lv_textarea_set_cursor_click_pos(ssh_output, false);
+  lv_textarea_set_one_line(ssh_output, false);
+  ssh_command = lv_textarea_create(ssh_panel);
+  lv_obj_set_size(ssh_command, 520, 42);
+  lv_obj_set_pos(ssh_command, 140, 306);
+  lv_textarea_set_one_line(ssh_command, true);
+  lv_textarea_set_placeholder_text(ssh_command, "Command");
+  lv_obj_t *ssh_send = lv_btn_create(ssh_panel);
+  lv_obj_set_size(ssh_send, 80, 42);
+  lv_obj_set_pos(ssh_send, 670, 306);
+  lv_obj_add_event_cb(ssh_send, ssh_send_event, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t *ssh_send_label = lv_label_create(ssh_send); lv_label_set_text(ssh_send_label, "SEND"); lv_obj_center(ssh_send_label);
+  lv_obj_t *ssh_connect = lv_btn_create(ssh_panel); lv_obj_set_size(ssh_connect, 120, 42); lv_obj_set_pos(ssh_connect, 10, 306); lv_obj_add_event_cb(ssh_connect, open_ssh_modal, LV_EVENT_CLICKED, nullptr); lv_obj_t *ssh_connect_label = lv_label_create(ssh_connect); lv_label_set_text(ssh_connect_label, "CONNECT"); lv_obj_center(ssh_connect_label);
+  lv_obj_t *keyboard = lv_keyboard_create(ssh_panel);
+  lv_obj_set_size(keyboard, 780, 100);
+  lv_obj_set_pos(keyboard, 10, 354);
+  lv_keyboard_set_textarea(keyboard, ssh_command);
+  lv_obj_t *settings_title = lv_label_create(settings_panel); lv_label_set_text(settings_title, "SETTINGS"); lv_obj_set_pos(settings_title, 24, 24);
+  lv_obj_t *brightness_label = lv_label_create(settings_panel); lv_label_set_text(brightness_label, "Screen brightness"); lv_obj_set_pos(brightness_label, 24, 82);
+  lv_obj_t *brightness_slider = lv_slider_create(settings_panel); lv_obj_set_size(brightness_slider, 600, 24); lv_obj_set_pos(brightness_slider, 24, 116); lv_slider_set_range(brightness_slider, 0, 255); lv_slider_set_value(brightness_slider, g_settings.brightness, LV_ANIM_OFF); lv_obj_add_event_cb(brightness_slider, brightness_event, LV_EVENT_VALUE_CHANGED, nullptr);
+  brightness_value = lv_label_create(settings_panel); char brightness_text[8]; snprintf(brightness_text, sizeof(brightness_text), "%u%%", (unsigned)(g_settings.brightness * 100 / 255)); lv_label_set_text(brightness_value, brightness_text); lv_obj_set_pos(brightness_value, 640, 112);
+  lv_obj_t *bluetooth_label = lv_label_create(settings_panel); lv_label_set_text(bluetooth_label, "BLE keyboard pairing: requires a BLE HID host adapter"); lv_obj_set_pos(bluetooth_label, 24, 190);
   lv_obj_t *tab_bar = lv_obj_create(screen); lv_obj_remove_style_all(tab_bar); lv_obj_set_size(tab_bar, 800, 40); lv_obj_set_pos(tab_bar, 0, 440); lv_obj_clear_flag(tab_bar, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_t *dashboard_tab = lv_btn_create(tab_bar); lv_obj_set_size(dashboard_tab, 400, 40); lv_obj_set_pos(dashboard_tab, 0, 0); lv_obj_add_style(dashboard_tab, &style_tab_active, 0); lv_obj_add_event_cb(dashboard_tab, tab_event, LV_EVENT_CLICKED, (void *)(intptr_t)0);
+  dashboard_tab = lv_btn_create(tab_bar); lv_obj_set_size(dashboard_tab, 400, 40); lv_obj_set_pos(dashboard_tab, 0, 0); lv_obj_add_style(dashboard_tab, &style_tab_active, 0); lv_obj_add_event_cb(dashboard_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)0);
   lv_obj_t *dashboard_label = lv_label_create(dashboard_tab); lv_label_set_text(dashboard_label, "DASHBOARD"); lv_obj_center(dashboard_label);
-  lv_obj_t *stocks_tab = lv_btn_create(tab_bar); lv_obj_set_size(stocks_tab, 400, 40); lv_obj_set_pos(stocks_tab, 400, 0); lv_obj_add_style(stocks_tab, &style_tab, 0); lv_obj_add_event_cb(stocks_tab, tab_event, LV_EVENT_CLICKED, (void *)(intptr_t)1);
-  lv_obj_t *stocks_label = lv_label_create(stocks_tab); lv_label_set_text(stocks_label, "EMPTY"); lv_obj_center(stocks_label);
+  ssh_tab = lv_btn_create(tab_bar); lv_obj_set_size(ssh_tab, 267, 40); lv_obj_set_pos(ssh_tab, 266, 0); lv_obj_add_style(ssh_tab, &style_tab, 0); lv_obj_add_event_cb(ssh_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)1);
+  lv_obj_t *ssh_label = lv_label_create(ssh_tab); lv_label_set_text(ssh_label, "SSH"); lv_obj_center(ssh_label);
+  settings_tab = lv_btn_create(tab_bar); lv_obj_set_size(settings_tab, 267, 40); lv_obj_set_pos(settings_tab, 533, 0); lv_obj_add_style(settings_tab, &style_tab, 0); lv_obj_add_event_cb(settings_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)2);
+  lv_obj_t *settings_tab_label = lv_label_create(settings_tab); lv_label_set_text(settings_tab_label, "SETTINGS"); lv_obj_center(settings_tab_label);
   select_tab(0);
   redraw();
 }

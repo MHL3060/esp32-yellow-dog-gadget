@@ -9,6 +9,7 @@
 #include "stocks.h"
 #include "network.h"
 #include "internet_ip.h"
+#include "ssh_terminal.h"
 #include "sun_moon.h"
 #include "webconfig.h"
 #include "weather_ui.h"
@@ -139,13 +140,14 @@ void setup()
     network_begin();
     stocks_begin();
     internet_ip_begin();
+    ssh_terminal_begin();
     weather_ui_begin();
     lv_timer_handler();
 
   #ifdef TFT_BL
     ledcSetup(0, 300, 8);
     ledcAttachPin(TFT_BL, 0);
-    ledcWrite(0, 255); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
+    ledcWrite(0, g_settings.brightness);
   #endif
 }
 
@@ -162,6 +164,7 @@ void loop()
   weather_tick();
   airquality_tick();
   stocks_tick();
+  ssh_terminal_tick();
   weather_ui_tick();
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);
