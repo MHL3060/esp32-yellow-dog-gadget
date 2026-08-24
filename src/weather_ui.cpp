@@ -5,21 +5,28 @@
 #include "time_manager.h"
 #include "sun_moon.h"
 #include "webconfig.h"
+#include "stocks.h"
+#include "internet_ip.h"
 #include <lvgl.h>
 #include <WiFi.h>
 #include <time.h>
 #include <stdio.h>
 
-static lv_obj_t *clock_time, *clock_date, *weather_icon, *weather_content, *air_content, *footer;
+static lv_obj_t *clock_time, *clock_date, *weather_icon, *weather_content, *air_content, *stock_content, *footer;
+static lv_obj_t *stock_cells[5][6];
+static lv_obj_t *stock_header_bold[6];
 static uint32_t last_draw;
 static char previous_clock_time[32] = "";
 static char previous_clock_date[64] = "";
 static char previous_weather[512] = "";
 static char previous_air[256] = "";
+static char previous_stocks[256] = "";
 static char previous_footer[160] = "";
 static lv_style_t style_bg, style_heading, style_content, style_clock, style_footer;
 static lv_style_t style_panel, style_small_heading, style_small_content;
 static lv_style_t style_sun, style_cloud, style_rain;
+static lv_style_t style_stock;
+static lv_style_t style_stock_updated;
 
 static void set_label(lv_obj_t *obj, char *previous, size_t previous_size, const char *text, const lv_style_t *style) {
   if (strcmp(previous, text) == 0) return;
@@ -109,23 +116,54 @@ static void draw_air() {
   else snprintf(text, sizeof(text), "AQI %d  PM2.5 %d ug/m3\nPressure %+.1f hPa", g_data.aqi, g_data.pm25, g_data.pressureTrend);
   set_label(air_content, previous_air, sizeof(previous_air), text, &style_small_content);
 }
+static void draw_stocks() {
+  String stockText = stocks_display();
+  int row = 0;
+  int lineStart = 0;
+  while (row < 5 && lineStart <= stockText.length()) {
+    int lineEnd = stockText.indexOf('\n', lineStart);
+    if (lineEnd < 0) lineEnd = stockText.length();
+    String line = stockText.substring(lineStart, lineEnd);
+    char values[6][24] = {};
+    sscanf(line.c_str(), "%23s %23s %23s %23s %23s %23s", values[0], values[1], values[2], values[3], values[4], values[5]);
+    for (int column = 0; column < 6; column++) {
+      lv_label_set_text(stock_cells[row][column], values[column]);
+      lv_obj_invalidate(stock_cells[row][column]);
+      if (row == 0) {
+        lv_label_set_text(stock_header_bold[column], values[column]);
+        lv_obj_invalidate(stock_header_bold[column]);
+      }
+    }
+    row++;
+    lineStart = lineEnd + 1;
+  }
+  while (row < 5) {
+    for (int column = 0; column < 6; column++) lv_label_set_text(stock_cells[row][column], "");
+    row++;
+  }
+  String updatedText = stocks_updated_display();
+  set_label(stock_content, previous_stocks, sizeof(previous_stocks), updatedText.c_str(), &style_stock);
+}
 static void redraw() {
   draw_clock();
   draw_weather();
   draw_air();
-  char status[160];
-  snprintf(status, sizeof(status), "Wi-Fi: %s   %s", WiFi.status() == WL_CONNECTED ? webconfig_ip().c_str() : "offline", webconfig_is_ap() ? webconfig_ap_ssid().c_str() : "");
-  set_label(footer, previous_footer, sizeof(previous_footer), status, &style_footer);
+  draw_stocks();
+  String status = "Internet: " + internet_ip_display() + "  Wi-Fi: " +
+                  (WiFi.status() == WL_CONNECTED ? webconfig_ip() : "offline");
+  set_label(footer, previous_footer, sizeof(previous_footer), status.c_str(), &style_footer);
 }
 void weather_ui_begin() {
   lv_style_init(&style_bg); lv_style_set_bg_color(&style_bg, lv_color_hex(0x07151c));
   lv_style_init(&style_heading); lv_style_set_text_color(&style_heading, lv_color_hex(0x35d0c2)); lv_style_set_text_font(&style_heading, &lv_font_montserrat_32);
   lv_style_init(&style_content); lv_style_set_text_color(&style_content, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_content, &lv_font_montserrat_28); lv_style_set_text_align(&style_content, LV_TEXT_ALIGN_CENTER);
   lv_style_init(&style_clock); lv_style_set_text_color(&style_clock, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_clock, &lv_font_montserrat_48); lv_style_set_text_align(&style_clock, LV_TEXT_ALIGN_CENTER);
-  lv_style_init(&style_footer); lv_style_set_text_color(&style_footer, lv_color_hex(0x91a8ad)); lv_style_set_text_font(&style_footer, &lv_font_montserrat_16);
+  lv_style_init(&style_footer); lv_style_set_text_color(&style_footer, lv_color_hex(0x91a8ad)); lv_style_set_text_font(&style_footer, &lv_font_montserrat_12);
   lv_style_init(&style_panel); lv_style_set_bg_color(&style_panel, lv_color_hex(0x10252d)); lv_style_set_border_width(&style_panel, 1); lv_style_set_border_color(&style_panel, lv_color_hex(0x29444d));
   lv_style_init(&style_small_heading); lv_style_set_text_color(&style_small_heading, lv_color_hex(0x35d0c2)); lv_style_set_text_font(&style_small_heading, &lv_font_montserrat_24);
   lv_style_init(&style_small_content); lv_style_set_text_color(&style_small_content, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_small_content, &lv_font_montserrat_18); lv_style_set_text_align(&style_small_content, LV_TEXT_ALIGN_CENTER);
+  lv_style_init(&style_stock); lv_style_set_text_color(&style_stock, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_stock, &lv_font_montserrat_14); lv_style_set_text_align(&style_stock, LV_TEXT_ALIGN_LEFT);
+  lv_style_init(&style_stock_updated); lv_style_set_text_color(&style_stock_updated, lv_color_hex(0x91a8ad)); lv_style_set_text_font(&style_stock_updated, &lv_font_montserrat_10); lv_style_set_text_align(&style_stock_updated, LV_TEXT_ALIGN_RIGHT);
   lv_style_init(&style_sun); lv_style_set_bg_color(&style_sun, lv_color_hex(0xf6c945)); lv_style_set_bg_opa(&style_sun, LV_OPA_COVER);
   lv_style_init(&style_cloud); lv_style_set_bg_color(&style_cloud, lv_color_hex(0x9bb4bd)); lv_style_set_bg_opa(&style_cloud, LV_OPA_COVER);
   lv_style_init(&style_rain); lv_style_set_bg_color(&style_rain, lv_color_hex(0x4aa8df)); lv_style_set_bg_opa(&style_rain, LV_OPA_COVER);
@@ -143,6 +181,26 @@ void weather_ui_begin() {
   weather_icon = lv_obj_create(clock_panel); lv_obj_remove_style_all(weather_icon); lv_obj_set_size(weather_icon, 66, 66); lv_obj_set_pos(weather_icon, 8, 132);
   weather_content = lv_label_create(clock_panel); lv_obj_set_size(weather_content, 300, 96); lv_obj_add_style(weather_content, &style_small_content, 0); lv_obj_set_pos(weather_content, 88, 130);
   air_content = lv_label_create(clock_panel); lv_obj_set_size(air_content, 380, 54); lv_obj_add_style(air_content, &style_small_content, 0); lv_obj_align(air_content, LV_ALIGN_TOP_MID, 0, 226);
+  stock_content = lv_label_create(data_panel); lv_obj_set_size(stock_content, 150, 18); lv_obj_add_style(stock_content, &style_stock_updated, 0); lv_obj_set_pos(stock_content, 240, 188);
+  lv_obj_set_style_text_align(stock_content, LV_TEXT_ALIGN_RIGHT, 0);
+  const int stock_x[] = { 4, 74, 136, 198, 260, 330 };
+  const int stock_width[] = { 70, 62, 62, 62, 70, 60 };
+  for (int row = 0; row < 5; row++) {
+    for (int column = 0; column < 6; column++) {
+      stock_cells[row][column] = lv_label_create(data_panel);
+      lv_obj_set_size(stock_cells[row][column], stock_width[column], 28);
+      lv_obj_set_pos(stock_cells[row][column], stock_x[column], 24 + row * 34);
+      lv_obj_add_style(stock_cells[row][column], &style_stock, 0);
+      if (column > 0) lv_obj_set_style_text_align(stock_cells[row][column], LV_TEXT_ALIGN_RIGHT, 0);
+    }
+  }
+  for (int column = 0; column < 6; column++) {
+    stock_header_bold[column] = lv_label_create(data_panel);
+    lv_obj_set_size(stock_header_bold[column], stock_width[column], 28);
+    lv_obj_set_pos(stock_header_bold[column], stock_x[column] + (column == 0 ? 1 : -1), 24);
+    lv_obj_add_style(stock_header_bold[column], &style_stock, 0);
+    if (column > 0) lv_obj_set_style_text_align(stock_header_bold[column], LV_TEXT_ALIGN_RIGHT, 0);
+  }
   redraw();
 }
 void weather_ui_tick() {

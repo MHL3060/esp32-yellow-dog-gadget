@@ -11,6 +11,7 @@ struct Settings {
   float latitude = 51.4779f;
   float longitude = -0.0015f;
   String tz = "UTC0";
+  String stockSymbols = "AAPL,MSFT,GOOGL";
   uint8_t units = UNITS_METRIC;
   bool provisioned = false;
 };

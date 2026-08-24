@@ -1,6 +1,7 @@
 #include "weather.h"
 #include "settings.h"
 #include "app_data.h"
+#include "network.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -10,7 +11,13 @@
 static uint32_t nextAttempt;
 static uint32_t backoff;
 
+struct NetworkGuard {
+  NetworkGuard() { network_lock(); }
+  ~NetworkGuard() { network_unlock(); }
+};
+
 static bool fetch_weather() {
+  NetworkGuard guard;
   WiFiClientSecure client;
   client.setInsecure();
   HTTPClient http;

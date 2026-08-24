@@ -1,6 +1,7 @@
 #include "airquality.h"
 #include "settings.h"
 #include "app_data.h"
+#include "network.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -9,7 +10,12 @@
 #include <math.h>
 
 static uint32_t nextAttempt;
+struct NetworkGuard {
+  NetworkGuard() { network_lock(); }
+  ~NetworkGuard() { network_unlock(); }
+};
 static bool fetch_aqi() {
+  NetworkGuard guard;
   WiFiClientSecure client; client.setInsecure();
   HTTPClient http;
   String url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + String(g_settings.latitude, 4) +

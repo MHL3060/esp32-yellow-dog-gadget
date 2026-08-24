@@ -6,6 +6,9 @@
 #include "time_manager.h"
 #include "weather.h"
 #include "airquality.h"
+#include "stocks.h"
+#include "network.h"
+#include "internet_ip.h"
 #include "sun_moon.h"
 #include "webconfig.h"
 #include "weather_ui.h"
@@ -133,6 +136,9 @@ void setup()
     time_manager_begin(g_settings.tz.c_str());
     weather_begin();
     airquality_begin();
+    network_begin();
+    stocks_begin();
+    internet_ip_begin();
     weather_ui_begin();
     lv_timer_handler();
 
@@ -155,6 +161,7 @@ void loop()
   if (millis() - last_sun >= 60000) { last_sun = millis(); sunmoon_recompute(); }
   weather_tick();
   airquality_tick();
+  stocks_tick();
   weather_ui_tick();
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);

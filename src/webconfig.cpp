@@ -51,7 +51,7 @@ static void root() {
     time_zone_matched = time_zone_matched || selected;
     page += "<option value='" + String(time_zone_options[option].value) + "'" + (selected ? " selected" : "") + ">" + time_zone_options[option].label + "</option>";
   }
-  page += "</select><input name=tzcustom placeholder='Custom POSIX TZ string' value='" + (time_zone_matched ? "" : html_escape(g_settings.tz)) + "'>Units<select name=units><option value=0" + String(g_settings.units == UNITS_METRIC ? " selected" : "") + ">Metric (C, km/h, hPa)</option><option value=1" + String(g_settings.units == UNITS_IMPERIAL ? " selected" : "") + ">Imperial (F, mph, inHg)</option></select><button>Save and restart</button></form>";
+  page += "</select><input name=tzcustom placeholder='Custom POSIX TZ string' value='" + (time_zone_matched ? "" : html_escape(g_settings.tz)) + "'>Stocks<input name=stocks value='" + html_escape(g_settings.stockSymbols) + "' placeholder='AAPL,MSFT,GOOGL'><small>Comma-separated Yahoo Finance symbols, for example AAPL,MSFT or 7203.T</small>Units<select name=units><option value=0" + String(g_settings.units == UNITS_METRIC ? " selected" : "") + ">Metric (C, km/h, hPa)</option><option value=1" + String(g_settings.units == UNITS_IMPERIAL ? " selected" : "") + ">Imperial (F, mph, inHg)</option></select><button>Save and restart</button></form>";
   server.send(200, "text/html", page);
 }
 static void save() {
@@ -63,6 +63,8 @@ static void save() {
   g_settings.latitude = lat; g_settings.longitude = lon;
   String customTimeZone = server.arg("tzcustom"); customTimeZone.trim();
   g_settings.tz = customTimeZone.length() ? customTimeZone : server.arg("tzsel");
+  g_settings.stockSymbols = server.arg("stocks"); g_settings.stockSymbols.trim();
+  if (g_settings.stockSymbols.isEmpty()) g_settings.stockSymbols = "AAPL,MSFT,GOOGL";
   g_settings.units = server.arg("units").toInt() ? UNITS_IMPERIAL : UNITS_METRIC;
   settings_save(); saved = true;
   server.send(200, "text/html", "<h1>Saved</h1><p>Restarting...</p>");
