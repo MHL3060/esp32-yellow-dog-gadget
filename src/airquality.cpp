@@ -31,7 +31,7 @@ static bool fetch_aqi() {
   g_data.aqiUpdatedAt = (uint32_t)time(nullptr); g_data.aqiValid = true;
   return true;
 }
-void airquality_begin() { nextAttempt = millis() + 5000; }
+void airquality_begin() { nextAttempt = millis() + 35000; }
 void airquality_tick() {
   if ((int32_t)(millis() - nextAttempt) < 0 || WiFi.status() != WL_CONNECTED) return;
   nextAttempt = millis() + (fetch_aqi() ? 1800000UL : 60000UL);

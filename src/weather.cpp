@@ -63,7 +63,7 @@ static bool fetch_weather() {
   return true;
 }
 
-void weather_begin() { nextAttempt = 0; backoff = 0; }
+void weather_begin() { nextAttempt = millis() + 25000; backoff = 0; }
 void weather_tick() {
   if ((int32_t)(millis() - nextAttempt) < 0 || WiFi.status() != WL_CONNECTED) return;
   if (fetch_weather()) { backoff = 0; nextAttempt = millis() + 900000UL; }

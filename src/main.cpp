@@ -10,6 +10,7 @@
 #include "network.h"
 #include "internet_ip.h"
 #include "ssh_terminal.h"
+#include "calendar.h"
 #include "sun_moon.h"
 #include "webconfig.h"
 #include "weather_ui.h"
@@ -69,10 +70,22 @@ static uint32_t lvgl_tick() {
   return (uint32_t)millis();
 }
 
+static void update_brightness_schedule() {
+#ifdef TFT_BL
+  static int applied_brightness = -1;
+  struct tm current_time;
+  if (!time_manager_now(current_time)) return;
+  bool nighttime = current_time.tm_hour >= 23 || current_time.tm_hour < 8;
+  int target_brightness = nighttime ? g_settings.brightness / 2 : g_settings.brightness;
+  if (target_brightness == applied_brightness) return;
+  ledcWrite(0, target_brightness);
+  applied_brightness = target_brightness;
+#endif
+}
+
 void setup()
 {
   Serial.begin(115200);
-  delay(100);
   Serial.println("Application setup started");
 
 #ifdef TFT_BL
@@ -82,6 +95,7 @@ void setup()
 
   // Init Display
   gfx->begin();
+  memset(disp_draw_buf, 0, sizeof(disp_draw_buf));
   lv_init();
   lv_tick_set_cb(lvgl_tick);
 
@@ -141,7 +155,10 @@ void setup()
     stocks_begin();
     internet_ip_begin();
     ssh_terminal_begin();
+    calendar_begin();
     weather_ui_begin();
+    lv_timer_handler();
+    delay(20);
     lv_timer_handler();
 
   #ifdef TFT_BL
@@ -161,10 +178,12 @@ void loop()
   }
   static uint32_t last_sun = 0;
   if (millis() - last_sun >= 60000) { last_sun = millis(); sunmoon_recompute(); }
+  update_brightness_schedule();
   weather_tick();
   airquality_tick();
   stocks_tick();
   ssh_terminal_tick();
+  calendar_tick();
   weather_ui_tick();
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);

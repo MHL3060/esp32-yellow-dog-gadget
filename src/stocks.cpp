@@ -129,6 +129,7 @@ static bool fetch_stocks() {
 }
 
 static void stock_task(void *) {
+  vTaskDelay(pdMS_TO_TICKS(50000));
   for (;;) {
     if (!fetch_stocks()) {
       if (xSemaphoreTake(display_mutex, portMAX_DELAY) == pdTRUE) {

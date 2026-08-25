@@ -16,6 +16,9 @@ struct Settings {
   uint16_t sshPort = 22;
   String sshUser;
   String sshPassword;
+  String icloudEmail;
+  String icloudAppPassword;
+  String icloudCalendarUrl;
   uint8_t brightness = 255;
   uint8_t units = UNITS_METRIC;
   bool provisioned = false;

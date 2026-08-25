@@ -8,6 +8,7 @@
 #include "stocks.h"
 #include "internet_ip.h"
 #include "ssh_terminal.h"
+#include "calendar.h"
 #include <lvgl.h>
 #include <WiFi.h>
 #include <time.h>
@@ -20,6 +21,7 @@ static lv_obj_t *stock_header_bold[6];
 static lv_obj_t *dashboard_panel, *stock_panel, *ssh_panel;
 static lv_obj_t *dashboard_tab, *ssh_tab;
 static lv_obj_t *settings_tab, *settings_panel, *brightness_value;
+static lv_obj_t *calendar_tab, *calendar_panel, *calendar_content, *calendar_updated_label;
 static lv_obj_t *ssh_output, *ssh_command;
 static lv_obj_t *ssh_modal, *ssh_host_input, *ssh_port_input, *ssh_user_input, *ssh_password_input;
 static uint32_t last_draw;
@@ -31,12 +33,14 @@ static char previous_weather[512] = "";
 static char previous_air[256] = "";
 static char previous_stocks[256] = "";
 static char previous_footer[160] = "";
+static char previous_calendar[512] = "";
 static lv_style_t style_bg, style_heading, style_content, style_clock, style_footer;
 static lv_style_t style_panel, style_small_heading, style_small_content;
 static lv_style_t style_sun, style_cloud, style_rain;
 static lv_style_t style_stock;
 static lv_style_t style_stock_updated;
 static lv_style_t style_tab, style_tab_active;
+static lv_style_t style_calendar;
 
 static void brightness_event(lv_event_t *event) {
   if (lv_event_get_code(event) != LV_EVENT_VALUE_CHANGED && lv_event_get_code(event) != LV_EVENT_RELEASED) return;
@@ -105,25 +109,42 @@ static void select_tab(int tab) {
     lv_obj_clear_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(calendar_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_style(dashboard_tab, &style_tab_active, 0);
     lv_obj_add_style(ssh_tab, &style_tab, 0);
+    lv_obj_add_style(calendar_tab, &style_tab, 0);
     lv_obj_add_style(settings_tab, &style_tab, 0);
   } else if (tab == 1) {
     lv_obj_add_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(calendar_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_style(dashboard_tab, &style_tab, 0);
     lv_obj_add_style(ssh_tab, &style_tab_active, 0);
+    lv_obj_add_style(calendar_tab, &style_tab, 0);
+    lv_obj_add_style(settings_tab, &style_tab, 0);
+  } else if (tab == 2) {
+    calendar_start_fetch();
+    lv_obj_add_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(calendar_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_style(dashboard_tab, &style_tab, 0);
+    lv_obj_add_style(ssh_tab, &style_tab, 0);
+    lv_obj_add_style(calendar_tab, &style_tab_active, 0);
     lv_obj_add_style(settings_tab, &style_tab, 0);
   } else {
     lv_obj_add_flag(dashboard_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(stock_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ssh_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(calendar_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(settings_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_style(dashboard_tab, &style_tab, 0);
     lv_obj_add_style(ssh_tab, &style_tab, 0);
+    lv_obj_add_style(calendar_tab, &style_tab, 0);
     lv_obj_add_style(settings_tab, &style_tab_active, 0);
   }
 }
@@ -181,12 +202,10 @@ static void draw_clock() {
     snprintf(date_text, sizeof(date_text), "%s %04d/%02d/%02d",
              weekdays[t.tm_wday], t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
   } else if (WiFi.status() != WL_CONNECTED) {
-    unsigned long elapsed = millis() / 1000;
-    snprintf(time_text, sizeof(time_text), "%02lu:%02lu",
-             elapsed / 3600, (elapsed / 60) % 60, elapsed % 60);
-    snprintf(seconds_text, sizeof(seconds_text), ":%02lu", elapsed % 60);
+    snprintf(time_text, sizeof(time_text), "--:--");
+    snprintf(seconds_text, sizeof(seconds_text), ":--");
     meridiem_text[0] = '\0';
-    snprintf(date_text, sizeof(date_text), "Wi-Fi offline | uptime");
+    snprintf(date_text, sizeof(date_text), "Wi-Fi offline");
   } else {
     snprintf(time_text, sizeof(time_text), "--:--");
     snprintf(seconds_text, sizeof(seconds_text), ":--");
@@ -273,12 +292,19 @@ static void draw_ssh() {
     previous_output[sizeof(previous_output) - 1] = '\0';
   }
 }
+static void draw_calendar() {
+  String text = calendar_display();
+  String updated = calendar_updated_display();
+  if (updated.length()) { text += "\n\n"; text += updated; }
+  set_label(calendar_content, previous_calendar, sizeof(previous_calendar), text.c_str(), &style_calendar);
+}
 static void redraw() {
   draw_clock();
   draw_weather();
   draw_air();
   draw_stocks();
   draw_ssh();
+  draw_calendar();
   String status = "Internet: " + internet_ip_display() + "  Wi-Fi: " +
                   (WiFi.status() == WL_CONNECTED ? webconfig_ip() : "offline");
   set_label(footer, previous_footer, sizeof(previous_footer), status.c_str(), &style_footer);
@@ -296,6 +322,7 @@ void weather_ui_begin() {
   lv_style_init(&style_small_content); lv_style_set_text_color(&style_small_content, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_small_content, &lv_font_montserrat_18); lv_style_set_text_align(&style_small_content, LV_TEXT_ALIGN_CENTER);
   lv_style_init(&style_stock); lv_style_set_text_color(&style_stock, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_stock, &lv_font_montserrat_14); lv_style_set_text_align(&style_stock, LV_TEXT_ALIGN_LEFT);
   lv_style_init(&style_stock_updated); lv_style_set_text_color(&style_stock_updated, lv_color_hex(0x91a8ad)); lv_style_set_text_font(&style_stock_updated, &lv_font_montserrat_10); lv_style_set_text_align(&style_stock_updated, LV_TEXT_ALIGN_RIGHT);
+  lv_style_init(&style_calendar); lv_style_set_text_color(&style_calendar, lv_color_hex(0xf4f7f5)); lv_style_set_text_font(&style_calendar, &lv_font_montserrat_20); lv_style_set_text_align(&style_calendar, LV_TEXT_ALIGN_LEFT);
   lv_style_init(&style_sun); lv_style_set_bg_color(&style_sun, lv_color_hex(0xf6c945)); lv_style_set_bg_opa(&style_sun, LV_OPA_COVER);
   lv_style_init(&style_cloud); lv_style_set_bg_color(&style_cloud, lv_color_hex(0x9bb4bd)); lv_style_set_bg_opa(&style_cloud, LV_OPA_COVER);
   lv_style_init(&style_rain); lv_style_set_bg_color(&style_rain, lv_color_hex(0x4aa8df)); lv_style_set_bg_opa(&style_rain, LV_OPA_COVER);
@@ -304,12 +331,14 @@ void weather_ui_begin() {
   stock_panel = lv_obj_create(screen); lv_obj_set_size(stock_panel, 400, 440); lv_obj_set_pos(stock_panel, 400, 0); lv_obj_add_style(stock_panel, &style_panel, 0);
   ssh_panel = lv_obj_create(screen); lv_obj_set_size(ssh_panel, 800, 440); lv_obj_set_pos(ssh_panel, 0, 0); lv_obj_add_style(ssh_panel, &style_panel, 0);
   settings_panel = lv_obj_create(screen); lv_obj_set_size(settings_panel, 800, 440); lv_obj_set_pos(settings_panel, 0, 0); lv_obj_add_style(settings_panel, &style_panel, 0);
+  calendar_panel = lv_obj_create(screen); lv_obj_set_size(calendar_panel, 800, 440); lv_obj_set_pos(calendar_panel, 0, 0); lv_obj_add_style(calendar_panel, &style_panel, 0);
   lv_obj_t *clock_panel = dashboard_panel;
   lv_obj_t *data_panel = stock_panel;
   lv_obj_clear_flag(clock_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(data_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(ssh_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(settings_panel, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(calendar_panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_pad_all(clock_panel, 0, 0);
   lv_obj_set_style_pad_all(data_panel, 0, 0);
 
@@ -367,18 +396,21 @@ void weather_ui_begin() {
   lv_obj_t *brightness_slider = lv_slider_create(settings_panel); lv_obj_set_size(brightness_slider, 600, 24); lv_obj_set_pos(brightness_slider, 24, 116); lv_slider_set_range(brightness_slider, 0, 255); lv_slider_set_value(brightness_slider, g_settings.brightness, LV_ANIM_OFF); lv_obj_add_event_cb(brightness_slider, brightness_event, LV_EVENT_VALUE_CHANGED, nullptr);
   brightness_value = lv_label_create(settings_panel); char brightness_text[8]; snprintf(brightness_text, sizeof(brightness_text), "%u%%", (unsigned)(g_settings.brightness * 100 / 255)); lv_label_set_text(brightness_value, brightness_text); lv_obj_set_pos(brightness_value, 640, 112);
   lv_obj_t *bluetooth_label = lv_label_create(settings_panel); lv_label_set_text(bluetooth_label, "BLE keyboard pairing: requires a BLE HID host adapter"); lv_obj_set_pos(bluetooth_label, 24, 190);
+  lv_obj_t *calendar_title = lv_label_create(calendar_panel); lv_label_set_text(calendar_title, "UPCOMING REMINDERS"); lv_obj_set_pos(calendar_title, 24, 20);
+  calendar_content = lv_label_create(calendar_panel); lv_obj_set_size(calendar_content, 752, 380); lv_obj_set_pos(calendar_content, 24, 64); lv_label_set_long_mode(calendar_content, LV_LABEL_LONG_WRAP);
   lv_obj_t *tab_bar = lv_obj_create(screen); lv_obj_remove_style_all(tab_bar); lv_obj_set_size(tab_bar, 800, 40); lv_obj_set_pos(tab_bar, 0, 440); lv_obj_clear_flag(tab_bar, LV_OBJ_FLAG_SCROLLABLE);
-  dashboard_tab = lv_btn_create(tab_bar); lv_obj_set_size(dashboard_tab, 400, 40); lv_obj_set_pos(dashboard_tab, 0, 0); lv_obj_add_style(dashboard_tab, &style_tab_active, 0); lv_obj_add_event_cb(dashboard_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)0);
+  dashboard_tab = lv_btn_create(tab_bar); lv_obj_set_size(dashboard_tab, 200, 40); lv_obj_set_pos(dashboard_tab, 0, 0); lv_obj_add_style(dashboard_tab, &style_tab_active, 0); lv_obj_add_event_cb(dashboard_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)0);
   lv_obj_t *dashboard_label = lv_label_create(dashboard_tab); lv_label_set_text(dashboard_label, "DASHBOARD"); lv_obj_center(dashboard_label);
-  ssh_tab = lv_btn_create(tab_bar); lv_obj_set_size(ssh_tab, 267, 40); lv_obj_set_pos(ssh_tab, 266, 0); lv_obj_add_style(ssh_tab, &style_tab, 0); lv_obj_add_event_cb(ssh_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)1);
+  ssh_tab = lv_btn_create(tab_bar); lv_obj_set_size(ssh_tab, 200, 40); lv_obj_set_pos(ssh_tab, 200, 0); lv_obj_add_style(ssh_tab, &style_tab, 0); lv_obj_add_event_cb(ssh_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)1);
   lv_obj_t *ssh_label = lv_label_create(ssh_tab); lv_label_set_text(ssh_label, "SSH"); lv_obj_center(ssh_label);
-  settings_tab = lv_btn_create(tab_bar); lv_obj_set_size(settings_tab, 267, 40); lv_obj_set_pos(settings_tab, 533, 0); lv_obj_add_style(settings_tab, &style_tab, 0); lv_obj_add_event_cb(settings_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)2);
+  calendar_tab = lv_btn_create(tab_bar); lv_obj_set_size(calendar_tab, 200, 40); lv_obj_set_pos(calendar_tab, 400, 0); lv_obj_add_style(calendar_tab, &style_tab, 0); lv_obj_add_event_cb(calendar_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)2);
+  lv_obj_t *calendar_tab_label = lv_label_create(calendar_tab); lv_label_set_text(calendar_tab_label, "CALENDAR"); lv_obj_center(calendar_tab_label);
+  settings_tab = lv_btn_create(tab_bar); lv_obj_set_size(settings_tab, 200, 40); lv_obj_set_pos(settings_tab, 600, 0); lv_obj_add_style(settings_tab, &style_tab, 0); lv_obj_add_event_cb(settings_tab, tab_event, LV_EVENT_RELEASED, (void *)(intptr_t)3);
   lv_obj_t *settings_tab_label = lv_label_create(settings_tab); lv_label_set_text(settings_tab_label, "SETTINGS"); lv_obj_center(settings_tab_label);
   select_tab(0);
   redraw();
 }
 void weather_ui_tick() {
-  if (millis() - last_draw < 1000) return;
-  last_draw = millis();
+  if (!time_manager_second_elapsed()) return;
   redraw();
 }
