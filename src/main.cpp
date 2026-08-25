@@ -14,6 +14,7 @@
 #include "sun_moon.h"
 #include "webconfig.h"
 #include "weather_ui.h"
+#include "ble_hid.h"
 #define TFT_BL 2
 
 AppData g_data;
@@ -157,7 +158,11 @@ void setup()
     internet_ip_begin();
     ssh_terminal_begin();
     calendar_begin();
+    // BLE HID disabled: NimBLE controller init fails to allocate internal RAM while WiFi is
+    // active on this Arduino-ESP32 core (2.0.11), causing an assert -> watchdog panic reboot loop.
+    // See /memories/repo/ble_hid_incompatible.md for details.
     weather_ui_begin();
+    Serial.println("weather_ui_begin: complete");
     lv_timer_handler();
     delay(20);
     lv_timer_handler();
@@ -193,6 +198,7 @@ void loop()
   stocks_tick();
   ssh_terminal_tick();
   calendar_tick();
+  ble_hid_tick();
   weather_ui_tick();
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);

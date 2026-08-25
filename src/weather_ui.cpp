@@ -9,6 +9,7 @@
 #include "internet_ip.h"
 #include "ssh_terminal.h"
 #include "calendar.h"
+#include "ble_hid.h"
 #include <lvgl.h>
 #include <WiFi.h>
 #include <time.h>
@@ -22,6 +23,7 @@ static lv_obj_t *dashboard_panel, *stock_panel, *ssh_panel;
 static lv_obj_t *dashboard_tab, *ssh_tab;
 static lv_obj_t *settings_tab, *settings_panel, *brightness_value;
 static lv_obj_t *calendar_tab, *calendar_panel, *calendar_content, *calendar_updated_label;
+static lv_obj_t *ble_status_label, *ble_connect_btn;
 static lv_obj_t *ssh_output, *ssh_command;
 static lv_obj_t *ssh_modal, *ssh_host_input, *ssh_port_input, *ssh_user_input, *ssh_password_input;
 static uint32_t last_draw;
@@ -395,7 +397,11 @@ void weather_ui_begin() {
   lv_obj_t *brightness_label = lv_label_create(settings_panel); lv_label_set_text(brightness_label, "Screen brightness"); lv_obj_set_pos(brightness_label, 24, 82);
   lv_obj_t *brightness_slider = lv_slider_create(settings_panel); lv_obj_set_size(brightness_slider, 600, 24); lv_obj_set_pos(brightness_slider, 24, 116); lv_slider_set_range(brightness_slider, 0, 255); lv_slider_set_value(brightness_slider, g_settings.brightness, LV_ANIM_OFF); lv_obj_add_event_cb(brightness_slider, brightness_event, LV_EVENT_VALUE_CHANGED, nullptr);
   brightness_value = lv_label_create(settings_panel); char brightness_text[8]; snprintf(brightness_text, sizeof(brightness_text), "%u%%", (unsigned)(g_settings.brightness * 100 / 255)); lv_label_set_text(brightness_value, brightness_text); lv_obj_set_pos(brightness_value, 640, 112);
-  lv_obj_t *bluetooth_label = lv_label_create(settings_panel); lv_label_set_text(bluetooth_label, "BLE keyboard pairing: requires a BLE HID host adapter"); lv_obj_set_pos(bluetooth_label, 24, 190);
+  lv_obj_t *bluetooth_title = lv_label_create(settings_panel); lv_label_set_text(bluetooth_title, "BLE Keyboard"); lv_obj_set_pos(bluetooth_title, 24, 182);
+  ble_status_label = lv_label_create(settings_panel);
+  lv_label_set_text(ble_status_label, "Unavailable: BLE controller cannot init alongside WiFi on this board/core");
+  lv_obj_set_pos(ble_status_label, 24, 216);
+  (void)ble_connect_btn;
   lv_obj_t *calendar_title = lv_label_create(calendar_panel); lv_label_set_text(calendar_title, "UPCOMING REMINDERS"); lv_obj_set_pos(calendar_title, 24, 20);
   calendar_content = lv_label_create(calendar_panel); lv_obj_set_size(calendar_content, 752, 380); lv_obj_set_pos(calendar_content, 24, 64); lv_label_set_long_mode(calendar_content, LV_LABEL_LONG_WRAP);
   lv_obj_t *tab_bar = lv_obj_create(screen); lv_obj_remove_style_all(tab_bar); lv_obj_set_size(tab_bar, 800, 40); lv_obj_set_pos(tab_bar, 0, 440); lv_obj_clear_flag(tab_bar, LV_OBJ_FLAG_SCROLLABLE);
