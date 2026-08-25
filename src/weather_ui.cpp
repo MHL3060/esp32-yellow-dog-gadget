@@ -410,7 +410,37 @@ void weather_ui_begin() {
   select_tab(0);
   redraw();
 }
+
+static uint32_t compute_content_hash() {
+  uint32_t hash = 0;
+  struct tm now;
+  if (!time_manager_now(now)) return 0;
+  
+  // Hash time (minutes only, so hour/minute changes trigger redraw)
+  hash = hash * 31 + now.tm_hour;
+  hash = hash * 31 + now.tm_min;
+  
+  // Hash weather data
+  hash = hash * 31 + (uint32_t)(g_data.tempC * 10);
+  hash = hash * 31 + g_data.weatherCode;
+  hash = hash * 31 + g_data.aqi;
+  
+  // Hash calendar/stocks/SSH to detect their updates
+  hash = hash * 31 + calendar_display().length();
+  hash = hash * 31 + stocks_display().length();
+  hash = hash * 31 + ssh_terminal_output().length();
+  
+  return hash;
+}
+
 void weather_ui_tick() {
   if (!time_manager_second_elapsed()) return;
-  redraw();
+  
+  static uint32_t last_hash = 0;
+  uint32_t current_hash = compute_content_hash();
+  
+  if (current_hash != last_hash) {
+    last_hash = current_hash;
+    redraw();
+  }
 }

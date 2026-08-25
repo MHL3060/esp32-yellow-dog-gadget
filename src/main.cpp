@@ -147,6 +147,7 @@ void setup()
     } else {
       Serial.println("WiFi credentials are not configured; use the hub setup AP.");
     }
+    WiFi.setSleep(WIFI_PS_MAX_MODEM);
     webconfig_begin();
     time_manager_begin(g_settings.tz.c_str());
     weather_begin();
@@ -178,6 +179,14 @@ void loop()
   }
   static uint32_t last_sun = 0;
   if (millis() - last_sun >= 60000) { last_sun = millis(); sunmoon_recompute(); }
+  
+  static uint32_t last_heap_print = 0;
+  if (millis() - last_heap_print >= 10000) {
+    last_heap_print = millis();
+    Serial.printf("[HEAP] Free: %u bytes, Min: %u, Max alloc: %u\n", 
+                  ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
+  }
+  
   update_brightness_schedule();
   weather_tick();
   airquality_tick();

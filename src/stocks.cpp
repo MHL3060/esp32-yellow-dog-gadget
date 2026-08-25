@@ -131,11 +131,16 @@ static bool fetch_stocks() {
 static void stock_task(void *) {
   vTaskDelay(pdMS_TO_TICKS(50000));
   for (;;) {
-    if (!fetch_stocks()) {
-      if (xSemaphoreTake(display_mutex, portMAX_DELAY) == pdTRUE) {
-        display_text = "Stock feed unavailable";
-        updated_text = "";
-        xSemaphoreGive(display_mutex);
+    struct tm now;
+    bool is_market_hours = time_manager_now(now) && (now.tm_hour >= 6 && now.tm_hour < 13);
+    
+    if (is_market_hours) {
+      if (!fetch_stocks()) {
+        if (xSemaphoreTake(display_mutex, portMAX_DELAY) == pdTRUE) {
+          display_text = "Stock feed unavailable";
+          updated_text = "";
+          xSemaphoreGive(display_mutex);
+        }
       }
     }
     vTaskDelay(pdMS_TO_TICKS(60000));
