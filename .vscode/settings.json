@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "lv_demo_widgets.h": "c",
+        "lvgl.h": "c",
+        "lv_demos.h": "c",
+        "lv_widgets.h": "c",
+        "lv_asset.h": "c"
+    }
+}

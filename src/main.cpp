@@ -158,9 +158,14 @@ void setup()
     internet_ip_begin();
     ssh_terminal_begin();
     calendar_begin();
-    // BLE HID disabled: NimBLE controller init fails to allocate internal RAM while WiFi is
-    // active on this Arduino-ESP32 core (2.0.11), causing an assert -> watchdog panic reboot loop.
-    // See /memories/repo/ble_hid_incompatible.md for details.
+    // NimBLE init can block/hang when WiFi is already active; run it off the boot path
+    // so the display still comes up even if BLE never finishes initializing.
+    xTaskCreatePinnedToCore([](void *) {
+      Serial.println("BLE init: starting");
+      ble_hid_begin();
+      Serial.println("BLE init: complete");
+      vTaskDelete(nullptr);
+    }, "ble_init", 8192, nullptr, 1, nullptr, 0);
     weather_ui_begin();
     Serial.println("weather_ui_begin: complete");
     lv_timer_handler();
